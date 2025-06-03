@@ -1,6 +1,6 @@
-# 🌟 AIris: Real-Time Scene Description System
-
 <div align="center">
+
+# AIris: Real-Time Scene Description System
 
 ![Status](https://img.shields.io/badge/Status-Planning%20Phase-blue?style=for-the-badge&logo=target)
 ![Course](https://img.shields.io/badge/Course-CSE%20499A/B-orange?style=for-the-badge&logo=graduation-cap)
