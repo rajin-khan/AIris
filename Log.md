@@ -36,6 +36,18 @@
   </tr>
   <tr>
     <td align="center">
+      <strong>June 11</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Vision</strong><br/>
+      Defined the Vision, Created Prototype<br/>
+      <em>Next: Create Working Prototype</em><br/>
+      <em>- Adib/Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <strong>[Date]</strong><br/>
       <em>[Year]</em>
     </td>
