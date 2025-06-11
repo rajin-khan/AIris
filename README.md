@@ -34,39 +34,6 @@
 
 ---
 
-## **Current Development Status**
-
-We're currently in the **prototype and testing phase**, working with a web interface to evaluate and optimize different multimodal AI models before hardware integration.
-
-### **Web Interface Testing Platform**
-
-Our development team is using a local web interface to rapidly prototype and test various AI models:
-
-</div>
-
-```
-🌐 Development Web Interface
-├── Image Upload & Capture Testi
-├── Audio Output Testing
-└── Real-time Metrics Visualization
-```
-
-<div align="center">
-
-### 🧠 **Multimodal AI Model Evaluation**
-
-We're currently testing and benchmarking multiple state-of-the-art vision-language models:
-
-| Model | Status | Avg Response Time | Accuracy Score | Memory Usage |
-|-------|---------|------------------|----------------|--------------|
-| **LLaVA-v1.5** | ✅ Testing | ~ | ~ | ~ |
-| **BLIP-2** | ✅ Testing | ~ | ~ | ~ |
-| **MiniGPT-4** | ✅ Testing | ~ | ~ | ~ |
-| **Groq API** | ✅ Testing | ~ | ~ | ~ |
-| **Ollama Local** | ✅ Testing | ~ | ~ | ~ |
-
----
-
 ## **System Architecture**
 
 ### **Hardware Components**
@@ -114,6 +81,39 @@ graph LR
 | **Object Recognition** | > 85% | ~ |
 | **Battery Life** | > 8 hours | ~ |
 | **Memory Usage** | < 7GB | ~ |
+
+---
+
+## **Current Development Status**
+
+We're currently in the **prototype and testing phase**, working with a web interface to evaluate and optimize different multimodal AI models before hardware integration.
+
+### **Web Interface Testing Platform**
+
+Our development team is using a local web interface to rapidly prototype and test various AI models:
+
+</div>
+
+```
+🌐 Development Web Interface
+├── Image Upload & Capture Testi
+├── Audio Output Testing
+└── Real-time Metrics Visualization
+```
+
+<div align="center">
+
+### 🧠 **Multimodal AI Model Evaluation**
+
+We're currently testing and benchmarking multiple state-of-the-art vision-language models:
+
+| Model | Status | Avg Response Time | Accuracy Score | Memory Usage |
+|-------|---------|------------------|----------------|--------------|
+| **LLaVA-v1.5** | ✅ Testing | ~ | ~ | ~ |
+| **BLIP-2** | ✅ Testing | ~ | ~ | ~ |
+| **MiniGPT-4** | ✅ Testing | ~ | ~ | ~ |
+| **Groq API** | ✅ Testing | ~ | ~ | ~ |
+| **Ollama Local** | ✅ Testing | ~ | ~ | ~ |
 
 ---
 
