@@ -12,9 +12,13 @@
 
 ---
 
+</div>
+
 > [!NOTE]
 > This project is currently under active development by our team ---
 > Expected Completion Date: December 2025.
+
+<div align="center">
 
 ## **Project Vision**
 
@@ -114,22 +118,24 @@ graph LR
 
 ## **Development Workflow**
 
+---
+
 ### **Current Phase: Model Optimization & Testing**
 
-1. **Model Evaluation**
-   - Testing multiple vision-language models
-   - Benchmarking performance on Raspberry Pi 5
-   - Optimizing for speed vs. accuracy trade-offs
+**Model Evaluation**
+- Testing multiple vision-language models
+- Benchmarking performance on Raspberry Pi 5
+- Optimizing for speed vs. accuracy trade-offs
 
-2. **Web Interface Development**
-   - Real-time model comparison dashboard
-   - Performance metrics visualization
-   - User experience prototyping
+**Web Interface Development**
+- Real-time model comparison dashboard
+- Performance metrics visualization
+- User experience prototyping
 
-3. **Performance Optimization**
-   - Model quantization experiments
-   - Memory usage optimization
-   - Latency reduction techniques
+**Performance Optimization**
+- Model quantization experiments
+- Memory usage optimization
+- Latency reduction techniques
 
 ### **Next Phase: Hardware Integration**
 
@@ -171,20 +177,3 @@ This project will be developed by:
 ---
 
 </div>
-
-> [!NOTE]
-> I'm not soldering wires together like some kind of animal ---
-> thus PCBs designed in KiCad.
->
-> And not only don't I solder wires, I like surface-mount
-> components.  And not just because some newer stuff isn't
-> even available in through-hole form any more.
->
-> Everything is designed to be "hand-soldered" --- although
-> your definition of hand-soldering may differ from mine. The
-> boards are double-sided, but surface mount components are
-> only on one side, typically with the other side used only
-> for connectors and the like.
->
-> I do these without a stencil. It's entirely doable, since I'm
-> now limiting myself to fairly simple SOIC-8 and the like.
