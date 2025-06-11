@@ -41,7 +41,7 @@
     </td>
     <td>
       <strong>Vision</strong><br/>
-      Defined the Vision, Created Prototype<br/>
+      Defined the Vision, Created Prototype and Added README<br/>
       <em>Next: Create Working Prototype</em><br/>
       <em>- Adib/Rajin</em>
     </td>
