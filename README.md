@@ -171,3 +171,20 @@ This project will be developed by:
 ---
 
 </div>
+
+> [!NOTE]
+> I'm not soldering wires together like some kind of animal ---
+> thus PCBs designed in KiCad.
+>
+> And not only don't I solder wires, I like surface-mount
+> components.  And not just because some newer stuff isn't
+> even available in through-hole form any more.
+>
+> Everything is designed to be "hand-soldered" --- although
+> your definition of hand-soldering may differ from mine. The
+> boards are double-sided, but surface mount components are
+> only on one side, typically with the other side used only
+> for connectors and the like.
+>
+> I do these without a stencil. It's entirely doable, since I'm
+> now limiting myself to fairly simple SOIC-8 and the like.
