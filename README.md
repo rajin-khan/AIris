@@ -15,8 +15,9 @@
 </div>
 
 > [!NOTE]
-> This project is currently under active development by our team ---
-> Expected Completion Date: December 2025.
+> This project is currently under active development by our team.
+>
+> **Expected Completion Date: December 2025.**
 
 <div align="center">
 
