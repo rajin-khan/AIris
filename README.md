@@ -14,7 +14,7 @@
 
 > [!NOTE]
 > This project is currently under active development by our team ---
-> Expected Completion Date: December 2025
+> Expected Completion Date: December 2025.
 
 ## **Project Vision**
 
