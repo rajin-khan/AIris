@@ -88,7 +88,7 @@ graph LR
 
 We're currently in the **prototype and testing phase**, working with a web interface to evaluate and optimize different multimodal AI models before hardware integration.
 
-| ![Screenshot A](./Documentation/images/ssa.png) | ![Screenshot B](./Documentation/Images/ssb.png) |
+| ![Screenshot A](./Documentation/images/ss.png) | ![Screenshot B](./Documentation/Images/ssb.png) |
 |---|---|
 
 ### **Web Interface Testing Platform**
