@@ -1,6 +1,6 @@
 <div align="center">
 
-![AIris Banner](./Documentation/Images/AIrisBannertiny.png)
+![AIris Banner](./Documentation/Images/AIrisBantiny.png)
 
 ---
 
