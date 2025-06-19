@@ -1,6 +1,6 @@
 <div align="center">
 
-# AIris 
+![AIris Banner](./Documentation/Images/AIrisBannertiny.png)
 **(pronounced: ai·ris | aɪ.rɪs)**
 
 ![Status](https://img.shields.io/badge/Status-Development%20Phase-blue?style=for-the-badge&logo=target) ![Course](https://img.shields.io/badge/Course-CSE%20499A/B-orange?style=for-the-badge&logo=graduation-cap) ![Focus](https://img.shields.io/badge/Focus-Accessibility%20Technology-green?style=for-the-badge&logo=eye) ![AI](https://img.shields.io/badge/AI-Multimodal%20Vision-purple?style=for-the-badge&logo=brain)
