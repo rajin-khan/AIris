@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIris Presentation</title>
+    <title>AIris: The Definitive Experience</title>
 
     <!-- Google Fonts: Georgia for headings, Inter for body text -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -137,6 +137,17 @@
         h2 { font-size: clamp(2.5rem, 5vw, 3.5rem); margin-bottom: 40px; border-bottom: 2px solid var(--brand-gold); padding-bottom: 20px; color: var(--brand-gold); text-shadow: 0 0 20px rgba(201, 172, 120, 0.3); }
         h3 { font-size: 1.5rem; color: var(--off-white); }
         
+        .sub-heading {
+            color: var(--brand-gold);
+            margin-top: 50px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--subtle-border);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
         .word-reveal span {
             display: inline-block;
             opacity: 0;
@@ -186,9 +197,7 @@
         #hero .logo-char { display: inline-block; opacity: 0; transform: translateY(40px) rotate(8deg); animation: char-fade-in 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards; }
         @keyframes char-fade-in { to { opacity: 1; transform: translateY(0) rotate(0); } }
         
-        .hardware-schematic {
-            display: flex; flex-direction: column; gap: 40px; margin-top: 40px; position: relative; padding: 20px 0;
-        }
+        .hardware-schematic { display: flex; flex-direction: column; gap: 40px; margin-top: 40px; position: relative; padding: 20px 0; }
         .unit-card { background: rgba(22, 22, 22, 0.5); border: 1px solid var(--subtle-border); border-radius: 16px; padding: 30px; text-align: center; backdrop-filter: blur(5px); width: 100%; max-width: 400px; margin: 0 auto; }
         .unit-card h4 { font-family: 'Georgia', serif; color: var(--brand-gold); margin-bottom: 25px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
         .component-list { display: flex; flex-direction: column; gap: 20px; }
@@ -214,12 +223,12 @@
         .concept-image img { max-width: 100%; height: auto; margin-bottom: 15px; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); }
         .concept-image figcaption { font-size: 1rem; color: var(--muted-gray); font-style: italic; }
         
-        .budget-table { width: 100%; border-collapse: collapse; margin-top: 40px; background: var(--dark-surface); border-radius: 12px; overflow: hidden; }
-        .budget-table th, .budget-table td { padding: 15px; text-align: left; border-bottom: 1px solid var(--subtle-border); }
-        .budget-table th { background: var(--brand-gold); color: var(--charcoal); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
-        .budget-table tr:last-child td { border-bottom: none; }
-        .budget-table tr { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
-        .is-visible .budget-table tr { opacity: 1; transform: translateY(0); }
+        .styled-table { width: 100%; border-collapse: collapse; margin-top: 40px; background: var(--dark-surface); border-radius: 12px; overflow: hidden; }
+        .styled-table th, .styled-table td { padding: 15px; text-align: left; border-bottom: 1px solid var(--subtle-border); }
+        .styled-table th { background: var(--brand-gold); color: var(--charcoal); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .is-visible .styled-table tr { opacity: 1; transform: translateY(0); }
 
         .timeline-container { position: relative; margin-top: 50px; }
         .timeline-line { position: absolute; left: 12px; top: 0; width: 4px; height: 100%; background: var(--subtle-border); transform: scaleY(0); transform-origin: top; transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1); }
@@ -228,20 +237,17 @@
         .timeline-item::before { content: ''; position: absolute; left: 0; top: 5px; width: 24px; height: 24px; background: var(--brand-gold); border-radius: 50%; box-shadow: 0 0 15px var(--brand-gold); animation: pulse-glow 2s infinite ease-in-out; }
         .phase-title { font-family: 'Georgia', serif; font-size: 1.5rem; color: var(--brand-gold); margin-bottom: 10px; }
         @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 15px var(--brand-gold); } 50% { box-shadow: 0 0 25px var(--brand-gold); } }
+        
+        .reference-list { list-style-type: decimal; padding-left: 20px; margin-top: 40px; }
+        .reference-list li { padding-left: 15px; margin-bottom: 15px; line-height: 1.6; }
+        .reference-list li::before { content: ''; } /* Remove default lucide icon */
+        .reference-list a { color: var(--off-white); text-decoration: none; border-bottom: 1px dashed var(--brand-gold); transition: color 0.3s, border-color 0.3s; }
+        .reference-list a:hover { color: var(--brand-gold); border-bottom-color: var(--off-white); }
+        .ref-label { color: var(--brand-gold); font-weight: 600; }
 
         .navigation { position: fixed; bottom: 40px; right: 40px; z-index: 1000; }
         
-        .nav-btn {
-            position: relative;
-            width: 72px;
-            height: 72px;
-            background: transparent;
-            border: none;
-            transition: transform 0.4s ease, opacity 0.4s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .nav-btn { position: relative; width: 72px; height: 72px; background: transparent; border: none; transition: transform 0.4s ease, opacity 0.4s; display: flex; align-items: center; justify-content: center; }
         .nav-btn:hover { transform: scale(1.1); }
         .nav-btn svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
         .nav-btn .progress-ring-bg { stroke: var(--subtle-border); }
@@ -268,7 +274,7 @@
             </div>
             <div class="card interactive-element fade-in-up">
                 <h3>Development Team</h3>
-                <p><strong>Adib Ar Rahman Khan (2212708042)</strong> & <strong>Saumik Saha Kabbya (2211204042)</strong><br>North South University | CSE 499A/B Senior Capstone Project</p>
+                <p><strong>Rajin Khan (2212708042)</strong> & <strong>Saumik Saha Kabbya (2211204042)</strong><br>North South University | CSE 499A/B Senior Capstone Project</p>
             </div>
         </section>
 
@@ -293,6 +299,7 @@
         </section>
 
         <section id="solution" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter III</span>   The Solution</div>
             <h2 class="word-reveal">The AIris Solution</h2>
             <p class="stagger-item">An elegant, purpose-built wearable that delivers <strong>sub-2-second, offline-first, context-aware descriptions</strong>. It is a quiet companion, a real-time narrator, and a bridge to visual freedom.</p>
              <div class="grid-container grid-2">
@@ -311,8 +318,36 @@
             </div>
         </section>
 
+        <section id="literature-review" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter IV</span>   Literature Review</div>
+            <h2 class="word-reveal">Grounding Our Vision in Research</h2>
+            <p class="stagger-item">The AIris project is built upon a solid foundation of academic and applied research. Our review of existing literature validates our architectural choices and highlights our key contributions to the field of assistive technology.</p>
+            
+            <h3 class="sub-heading stagger-item">Key Research Gaps Addressed</h3>
+            <table class="styled-table stagger-item">
+                <thead>
+                    <tr><th>Research Gap Identified</th><th>How AIris Addresses the Gap</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>High Latency & Cloud Dependency</strong></td><td>An offline-first architecture on a Raspberry Pi 5 ensures sub-2-second response times, eliminating reliance on internet connectivity.</td></tr>
+                    <tr><td><strong>Lack of Contextual Understanding</strong></td><td>Integration of modern Vision-Language Models (LLaVA, BLIP-2) provides rich, human-like descriptions, moving beyond simple object lists.</td></tr>
+                    <tr><td><strong>High Cost & Poor Accessibility</strong></td><td>A targeted hardware budget under $160 USD and an open-source philosophy make the technology vastly more accessible than commercial alternatives.</td></tr>
+                    <tr><td><strong>On-Device Performance Limitations</strong></td><td>Targeted hardware/software co-design, including model quantization and memory management, is a core development phase, not an afterthought.</td></tr>
+                </tbody>
+            </table>
+            
+            <h3 class="sub-heading stagger-item">References</h3>
+            <ol class="reference-list stagger-item">
+                <li><a href="https://arxiv.org/pdf/2503.15494.pdf" target="_blank" rel="noopener noreferrer">Naayini, P., et al. (2025). <em>AI-Powered Assistive Technologies for Visual Impairment.</em></a></li>
+                <li><span class="ref-label">(Foundational Work)</span> <a href="https://arxiv.org/pdf/1905.07836.pdf" target="_blank" rel="noopener noreferrer">Wang, L., & Wong, A. (2019). <em>Enabling Computer Vision Driven Assistive Devices...</em></a></li>
+                <li><span class="ref-label">(Foundational Work)</span> <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5375851/pdf/sensors-17-00565.pdf" target="_blank" rel="noopener noreferrer">Elmannai, W., & Elleithy, K. (2017). <em>Sensor-Based Assistive Devices for Visually-Impaired People...</em></a></li>
+                <li><a href="https://arxiv.org/pdf/2304.08485.pdf" target="_blank" rel="noopener noreferrer">Liu, H., et al. (2023). <em>Visual Instruction Tuning (LLaVA).</em></a></li>
+                <li><a href="https://arxiv.org/pdf/2301.12597.pdf" target="_blank" rel="noopener noreferrer">Li, J., et al. (2023). <em>BLIP-2: Bootstrapping Language-Image Pre-training...</em></a></li>
+            </ol>
+        </section>
+
         <section id="architecture" class="section stagger-container">
-            <div class="chapter-heading"><span>Chapter III</span>   System Architecture</div>
+            <div class="chapter-heading"><span>Chapter V</span>   System Architecture</div>
             <h2 class="word-reveal">Anatomy of Instant Vision</h2>
             <p class="stagger-item">Our modular architecture separates the system into a wearable Spectacle Unit and a powerful Pocket Unit. This core design is flexible, allowing for multiple physical form factors.</p>
             
@@ -354,7 +389,7 @@
         </section>
 
         <section id="tech-deep-dive" class="section stagger-container">
-            <div class="chapter-heading"><span>Chapter IV</span>   Technology Deep Dive</div>
+            <div class="chapter-heading"><span>Chapter VI</span>   Technology Deep Dive</div>
             <h2 class="word-reveal">Our Technology Stack</h2>
             <p class="stagger-item">We are leveraging a state-of-the-art technology stack, chosen for performance on edge devices. This is not just a concept; it is an engineered system.</p>
              <div class="grid-container grid-2">
@@ -372,7 +407,7 @@
         </section>
         
         <section id="current-status" class="section stagger-container">
-             <div class="chapter-heading"><span>Chapter V</span>   Prototyping & Evaluation</div>
+             <div class="chapter-heading"><span>Chapter VII</span>   Prototyping & Evaluation</div>
              <h2 class="word-reveal">Current Development Status</h2>
              <p class="stagger-item">We are in the active prototyping and testing phase, using a web interface to rapidly evaluate and optimize different multimodal AI models before hardware integration.</p>
              
@@ -387,12 +422,12 @@
                 </figure>
             </div>
         </section>
-
+ 
         <section id="budget" class="section stagger-container">
-            <div class="chapter-heading"><span>Chapter VI</span>   The Blueprint</div>
+            <div class="chapter-heading"><span>Chapter VIII</span>   The Blueprint</div>
             <h2 class="word-reveal">Budget & Portability</h2>
             <p class="stagger-item">Accessibility includes affordability. We've sourced components to keep the cost under our target for the Bangladesh market, without sacrificing the core mission of complete portability.</p>
-            <table class="budget-table">
+            <table class="styled-table budget-table">
                 <thead><tr><th>Component Category</th><th>Cost Range (BDT)</th><th>Weight Est.</th></tr></thead>
                 <tbody>
                     <tr class="stagger-item"><td><strong>Core Computing</strong> (Pi 5, SD Card)</td><td>৳10,600 - ৳12,600</td><td>~200g</td></tr>
@@ -405,7 +440,7 @@
         </section>
 
         <section id="timeline" class="section stagger-container">
-            <div class="chapter-heading"><span>Chapter VII</span>   The Roadmap</div>
+            <div class="chapter-heading"><span>Chapter IX</span>   The Roadmap</div>
             <h2 class="word-reveal">Two Phases of Innovation</h2>
             <div class="timeline-container">
                 <div class="timeline-line"></div>
@@ -421,7 +456,7 @@
         </section>
 
         <section id="alignment" class="section stagger-container">
-             <div class="chapter-heading"><span>Chapter VIII</span>   Academic Alignment</div>
+             <div class="chapter-heading"><span>Chapter X</span>   Academic Alignment</div>
              <h2 class="word-reveal">Exceeding Course Outcomes</h2>
              <p class="fade-in-up">This project is meticulously designed to meet and exceed the learning outcomes for the CSE 499A/B Senior Capstone course.</p>
              <div class="grid-container grid-2">
@@ -516,7 +551,7 @@
             });
         }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
         
-        document.querySelectorAll('.section, .stagger-item, .fade-in-up, .timeline-item, .budget-table tr, .hardware-schematic, .concept-gallery').forEach(el => observer.observe(el));
+        document.querySelectorAll('.section, .stagger-item, .fade-in-up, .timeline-item, .styled-table tr, .hardware-schematic, .concept-gallery').forEach(el => observer.observe(el));
 
         // --- 4. Navigation & Progress Ring ---
         function updateProgress() {
