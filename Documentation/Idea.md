@@ -2,7 +2,7 @@
 
 # AIris: Real-Time Scene Description System
 
-![Status](https://img.shields.io/badge/Status-Planning%20Phase-blue?style=for-the-badge&logo=target)
+![Status](https://img.shields.io/badge/Status-Prototyping%20%26%20Development-blue?style=for-the-badge&logo=target)
 ![Course](https://img.shields.io/badge/Course-CSE%20499A/B-orange?style=for-the-badge&logo=graduation-cap)
 ![Focus](https://img.shields.io/badge/Focus-Accessibility%20Technology-green?style=for-the-badge&logo=eye)
 
@@ -26,66 +26,67 @@ Imagine walking down a street, entering a new room, or navigating an unfamiliar 
 
 Current visual assistance solutions fall short in several key areas:
 
-- **Latency Issues**: Existing apps require multiple steps (open app → navigate → capture → process)
-- **Cost Barriers**: Many solutions rely on expensive cloud APIs or proprietary hardware
-- **Limited Accessibility**: Smartphone-dependent solutions aren't always practical or accessible
-- **Context Gap**: Static image analysis without understanding of user intent or environment
+- **Latency Issues**: Existing apps require multiple steps (open app → navigate → capture → process).
+- **Cost Barriers**: Many solutions rely on expensive cloud APIs or proprietary hardware.
+- **Limited Accessibility**: Smartphone-dependent solutions aren't always practical or accessible.
+- **Context Gap**: Static image analysis without understanding of user intent or environment over time.
 
-**AIris addresses these challenges with a purpose-built, wearable solution that prioritizes speed, accessibility, and independence.**
+**AIris addresses these challenges with a purpose-built, wearable solution that prioritizes speed, privacy, accessibility, and independence.**
 
 ---
 
 ## **System Architecture Overview**
 
-## Hardware Components
+### Hardware Components
 
 <table>
 <tr>
 <td width="33%" align="center">
 
 ### **Spectacle Camera**
-Smart capture system  
-Integrated button control  
-Optimized for mobility  
+Smart capture system<br/>
+Integrated button control<br/>
+Optimized for mobility
 
 </td>
 <td width="33%" align="center">
 
 ### **Raspberry Pi 5**
-8GB RAM powerhouse  
-Local AI processing  
-Edge computing core  
+16GB RAM powerhouse<br/>
+Local AI processing<br/>
+Edge computing core
 
 </td>
 <td width="33%" align="center">
 
 ### **Power & Housing**
-Custom pocket case  
-Portable power supply  
-All-day battery life  
+Custom pocket case<br/>
+Portable power supply<br/>
+All-day battery life
 
 </td>
 </tr>
 </table>
 
-## Software Architecture
+### Software Architecture
 
 <table>
 <tr>
 <td width="50%" align="center">
 
-### **🎯 Scene Description Engine**
-Local AI models (primary)  
-Groq API fallback system  
-Ollama LLM integration  
+### **🎯 Context-Aware Scene Engine**
+- **Position-Aware Encoder (ViT + 3D data)**
+- **Memory Consolidation Agent (k-means)**
+- **LLM Decoder with Cross-Attention**
+- Groq/Ollama Fallback System
 
 </td>
 <td width="50%" align="center">
 
 ### **📷 Camera Interface**
-Low-latency image capture  
-Automatic lighting adjustment  
-Button trigger management  
+Low-latency image capture<br/>
+Automatic lighting adjustment<br/>
+Button trigger management
 
 </td>
 </tr>
@@ -93,17 +94,17 @@ Button trigger management
 <td width="50%" align="center">
 
 ### **🔊 Audio Output System**
-Text-to-speech engine  
-Bluetooth audio support  
-Priority audio management  
+Text-to-speech engine<br/>
+Bluetooth audio support<br/>
+Priority audio management
 
 </td>
 <td width="50%" align="center">
 
 ### **⚡ Performance Optimization**
-Model caching & preloading  
-Background processing  
-Intelligent power management  
+Model quantization & caching<br/>
+Background processing<br/>
+Intelligent power management
 
 </td>
 </tr>
@@ -114,91 +115,49 @@ Intelligent power management
 ## **Core Features & Capabilities**
 
 ### **Instant Scene Analysis**
-- **Sub-2-second** response time from button press to audio description
-- **Contextual understanding** of spatial relationships and important objects
-- **Dynamic detail levels** based on scene complexity
+- **Sub-2-second** response time from button press to audio description.
+- **Contextual understanding** of spatial relationships and important objects.
+- **Dynamic detail levels** based on scene complexity.
 
 ### **Intelligent Description Engine**
-- **Object identification** with confidence levels
-- **Spatial awareness** (left/right, near/far relationships)
-- **Activity recognition** (people walking, cars moving, etc.)
-- **Safety alerts** (obstacles, hazards, traffic conditions)
+- **Spatio-Temporal Memory:** Remembers objects and context from previous moments to inform current descriptions.
+- **Object identification** with confidence levels.
+- **Spatial awareness** (left/right, near/far relationships).
+- **Activity recognition** (people walking, cars moving, etc.).
+- **Safety alerts** (obstacles, hazards, traffic conditions).
 
 ### **Adaptive AI Processing**
-- **Local-first approach** using optimized models on Raspberry Pi
-- **Smart fallback** to Groq API for complex scenes requiring more processing power
-- **Learning capabilities** to improve descriptions based on user preferences
+- **Local-first approach** using optimized models on Raspberry Pi.
+- **Smart fallback** to Groq API for complex narrative synthesis.
+- **Learning capabilities** to improve descriptions based on user preferences.
 
 ### **Seamless User Experience**
-- **Single-button operation** - press and receive description
-- **Hands-free design** - fully wearable and wireless
-- **Long battery life** - optimized for all-day use
-- **Weather-resistant** construction for outdoor use
+- **Single-button operation** - press and receive description.
+- **Hands-free design** - fully wearable and wireless.
+- **Long battery life** - optimized for all-day use.
+- **Weather-resistant** construction for outdoor use.
 
 ---
 
 ## **Technical Implementation Strategy**
 
-### **Phase 1: CSE 499A - Software Foundation**
+Our development is structured into a focused 4-week sprint to build the advanced Context-Aware Spatial Description (CAS-D) system.
 
-#### **Core Development Goals:**
-1. **AI Model Research & Selection**
-   - Evaluate lightweight vision-language models (LLaVA, MiniGPT-4, BLIP-2)
-   - Benchmark performance on Raspberry Pi 5
-   - Implement Groq API integration as backup
-   - Set up Ollama for local LLM processing
+*   **Week 1: Formalize Prototype & Foundations**
+    *   **Goal:** Refactor our current `app.py` prototype into a professional project structure and establish the theoretical groundwork for the advanced system by analyzing key research papers (MC-ViT, Video-3D LLM).
+    *   **Deliverable:** A polished, runnable v1 prototype and a research summary document.
 
-2. **Scene Description Engine**
-   - Develop intelligent prompting strategies for optimal descriptions
-   - Create context-aware description templates
-   - Implement confidence-based description filtering
-   - Build audio output optimization
+*   **Week 2: Build the Core AIris Engine**
+    *   **Goal:** Implement the main `AIrisModel` class, including the `PositionAwareEncoder`, the k-means-based `MemoryAgent`, and the LLM decoder wired for cross-attention.
+    *   **Deliverable:** A functional `AIrisModel` that can be tested with dummy data, proving the internal mechanics work.
 
-3. **Camera Integration & Testing**
-   - USB/CSI camera module integration
-   - Real-time image capture optimization
-   - Lighting condition handling
-   - Button trigger implementation
+*   **Week 3: Integrate the 3D Data Pipeline**
+    *   **Goal:** Implement a PyTorch `Dataset` and `DataLoader` for the ScanNet dataset, capable of feeding real-world RGB, depth, and camera pose data into our model.
+    *   **Deliverable:** A successful integration test showing that real data can flow through the `AIrisModel` without errors.
 
-4. **Performance Optimization**
-   - Model quantization for faster inference
-   - Memory management for 8GB RAM constraint
-   - Background processing architecture
-   - Latency measurement and optimization
-
-#### **Deliverables:**
-- Fully functional prototype running on Raspberry Pi 5
-- Comprehensive performance benchmarks
-- Working camera integration with button trigger
-- Audio description system with TTS
-- Documentation of AI model comparison and selection
-
-### **Phase 2: CSE 499B - Hardware Integration & Refinement**
-
-#### **Hardware Development Goals:**
-1. **Custom Hardware Design**
-   - 3D-printed spectacle mount for camera
-   - Ergonomic button placement and wiring
-   - Compact Raspberry Pi case design
-   - Portable power supply solution
-
-2. **Wiring & Electronics**
-   - Long-wire camera connection design
-   - Button integration with proper debouncing
-   - Power management system
-   - Bluetooth audio integration
-
-3. **User Experience Optimization**
-   - Field testing with actual users
-   - Ergonomic refinements
-   - Battery life optimization
-   - Durability and weather-proofing
-
-4. **Final System Integration**
-   - Complete hardware-software integration
-   - Production-ready prototype
-   - User manual and setup documentation
-   - Performance validation in real-world scenarios
+*   **Week 4: End-to-End Proof-of-Concept**
+    *   **Goal:** Implement a full training loop, run it on a small subset of the data, and demonstrate that the training loss decreases. This proves the entire architecture is viable and can learn.
+    *   **Deliverable:** A functional, end-to-end MVP codebase with a `README.md`, and a near-complete research proposal draft.
 
 ---
 
@@ -206,18 +165,18 @@ Intelligent power management
 
 ### **Software Technologies**
 | Component | Technology | Purpose |
-|-----------|------------|---------|
+|:---|:---|:---|
 | **Core Language** | Python 3.11+ | Main development language |
-| **Computer Vision** | OpenCV, PIL | Image processing and optimization |
-| **AI/ML Framework** | PyTorch, Transformers | Local model inference |
-| **API Integration** | Groq SDK, Ollama API | Cloud/local LLM integration |
+| **Computer Vision** | OpenCV, PIL, Open3D | Image, video, and 3D data processing |
+| **AI/ML Framework** | PyTorch, Transformers, `timm` | Local model inference and architecture |
+| **API Integration** | Groq SDK, Ollama API | Cloud/local LLM for narrative synthesis |
 | **Audio Processing** | pyttsx3, pygame | Text-to-speech and audio management |
 | **Hardware Interface** | RPi.GPIO, picamera2 | Raspberry Pi hardware control |
-| **Optimization** | ONNX Runtime, TensorRT | Model acceleration |
+| **Optimization** | ONNX Runtime, TensorRT | Model acceleration (Future Goal) |
 
 ### **Hardware Components**
 | Component | Specification | Purpose |
-|-----------|---------------|---------|
+|:---|:---|:---|
 | **Processing Unit** | Raspberry Pi 5 (8GB RAM) | Main computing platform |
 | **Camera** | High-res USB/CSI module | Image capture |
 | **Button** | Tactile switch with long wire | User input trigger |
@@ -230,22 +189,23 @@ Intelligent power management
 ## **Success Metrics & Goals**
 
 ### **Performance Targets**
-- **Latency**: < 2 seconds from button press to audio start
-- **Accuracy**: > 85% object identification accuracy
-- **Battery Life**: > 8 hours continuous use
-- **Description Quality**: Natural, helpful, contextually relevant
+- **Latency**: < 2 seconds from button press to audio start.
+- **Accuracy**: > 85% object identification accuracy.
+- **Contextual Accuracy:** High score on our novel, context-dependent Q&A evaluation.
+- **Battery Life**: > 8 hours continuous use.
+- **Description Quality**: Natural, helpful, and contextually relevant.
 
 ### **User Experience Goals**
-- **Ease of Use**: Single-button operation
-- **Reliability**: 99%+ uptime during testing
-- **Portability**: Comfortable for extended wear
-- **Independence**: Fully offline capable (with online enhancement)
+- **Ease of Use**: Single-button operation.
+- **Reliability**: 99%+ uptime during testing.
+- **Portability**: Comfortable for extended wear.
+- **Independence**: Fully offline capable (with online enhancement).
 
 ### **Technical Achievements**
-- **Cost-Effective**: Total hardware cost < $200
-- **Open Source**: All software freely available
-- **Extensible**: Plugin architecture for additional features
-- **Cross-Platform**: Adaptable to other hardware platforms
+- **Cost-Effective**: Total hardware cost < $200.
+- **Open Source**: All software freely available.
+- **Extensible**: Modular architecture for additional features.
+- **Cross-Platform**: Adaptable to other hardware platforms.
 
 ---
 
@@ -255,15 +215,15 @@ Intelligent power management
 AIris will provide visually impaired individuals with unprecedented real-time awareness of their environment, enhancing safety, independence, and confidence in navigation and daily activities.
 
 ### **Long-term Vision**
-- **Community Platform**: Open-source ecosystem for accessibility technology
-- **AI Enhancement**: Continuous learning from anonymized usage data
-- **Feature Expansion**: Navigation assistance, facial recognition, document reading
-- **Hardware Evolution**: Integration with AR glasses, smaller form factors
+- **Community Platform**: Open-source ecosystem for accessibility technology.
+- **AI Enhancement**: Continuous learning from anonymized usage data.
+- **Feature Expansion**: Navigation assistance, facial recognition, document reading.
+- **Hardware Evolution**: Integration with AR glasses, smaller form factors.
 
 ### **Research Contributions**
-- **Edge AI Optimization**: Techniques for running vision-language models on constrained hardware
-- **Accessibility Interface Design**: Best practices for wearable assistive technology
-- **Real-time Scene Understanding**: Novel approaches to contextual visual description
+- **Novel Framework:** A new architecture for spatio-temporal context in assistive tech.
+- **Edge AI Optimization**: Techniques for running complex vision-language models on constrained hardware.
+- **Accessibility Interface Design**: Best practices for wearable assistive technology.
 
 ---
 
@@ -271,28 +231,30 @@ AIris will provide visually impaired individuals with unprecedented real-time aw
 
 ### **Development Environment Setup**
 ```bash
-# Raspberry Pi 5 Setup
-sudo apt update && sudo apt upgrade -y
-sudo apt install python3-pip python3-venv git
+# Set up a Conda environment
+conda create -n airis_casd python=3.10 -y
+conda activate airis_casd
 
 # Project Dependencies
-pip install torch torchvision transformers
-pip install opencv-python pillow groq ollama
-pip install pyttsx3 pygame RPi.GPIO picamera2
+pip install torch torchvision transformers opencv-python-headless
+pip install timm numpy open3d # For advanced model
+pip install groq ollama # For LLM integration
+pip install pyttsx3 pygame RPi.GPIO picamera2 # For hardware
 ```
 
 ### **Repository Structure**
 ```
-AIris/
+airis_project/
+├── data/                  # For dataset files (e.g., ScanNet)
+├── notebooks/             # For exploration and visualization
 ├── src/
-│   ├── ai_engine/          # AI model handling
-│   ├── camera_interface/   # Camera and hardware control
-│   ├── audio_system/       # TTS and audio management
-│   └── core/              # Main application logic
-├── models/                # Local AI models
-├── hardware/              # 3D models and wiring diagrams
-├── docs/                  # Documentation and research
-└── tests/                 # Testing and benchmarks
+│   ├── dataset.py         # Data loading and preprocessing
+│   ├── model.py           # The main AIris model architecture
+│   ├── agent.py           # The memory consolidation agent
+│   ├── train.py           # Training and evaluation loop
+│   └── config.py          # Hyperparameters and settings
+├── README.md
+└── requirements.txt
 ```
 
 ---
@@ -301,12 +263,12 @@ AIris/
 
 This project directly builds upon the **TapSense** foundation from CSE 299, extending its accessibility mission into real-time environmental awareness. The technical challenges span multiple computer science disciplines:
 
-- **Computer Vision & AI**: Scene understanding and model optimization
-- **Systems Programming**: Real-time processing and hardware integration
-- **Human-Computer Interaction**: Accessibility-focused interface design
-- **Embedded Systems**: Resource-constrained computing optimization
+- **Computer Vision & AI**: Scene understanding and model optimization.
+- **Systems Programming**: Real-time processing and hardware integration.
+- **Human-Computer Interaction**: Accessibility-focused interface design.
+- **Embedded Systems**: Resource-constrained computing optimization.
 
-**AIris** represents a practical application of cutting-edge AI technology to solve real-world accessibility challenges, with the potential for significant social impact and technical innovation.
+**AIris** represents a practical application of cutting-edge AI research to solve real-world accessibility challenges, with the potential for significant social impact and technical innovation.
 
 ---
 

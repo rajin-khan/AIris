@@ -16,15 +16,16 @@
 ```
 AIris/
 ├── 📁 Class/                          # Course materials & submissions
-├── 📁 Documentation/                  # Project docs & research
+├── 📁 Documentation/                  # Project docs, research, and planning
 ├── 📁 Hardware/                       # Hardware designs & specs
-├── 📁 Software/                       # Core software development
+├── 📁 Software/                       # All software development
 ├── 📄 README.md                      # ✅ Main project overview
+└── 📄 .gitignore
 ```
 
 ---
 
-## **Class/** 
+## **Class/**
 *Course deliverables and academic materials*
 
 ```
@@ -44,13 +45,14 @@ Class/
 
 ```
 Documentation/
-├── 📄 Idea.md                        # ✅ Main project vision
-├── 📄 Structure.md                   # Main Structure File
-├── 📄 ai-models-research.md          # AI model comparison
-├── 📄 system-architecture.md         # Technical architecture
-├── 📄 user-manual.md                 # How to use AIris
-├── 📄 installation-guide.md          # Setup instructions
-└── 📁 media/                         # Images, videos, demos
+├── 📄 Idea.md                        # ✅ High-level project vision
+├── 📄 Vision.md                      # ✅ Visual identity and brand guide
+├── 📄 PLAN.md                        # ✅ Detailed 4-week development plan
+├── 📄 Structure.md                   # This file: Main project structure
+├── 📄 research-summary.md            # Analysis of MC-ViT, Video-3D LLM, etc.
+├── 📄 system-architecture.md         # Technical architecture diagrams
+├── 📄 user-manual.md                 # How to use the final AIris device
+└── 📁 media/                         # Images, videos, logos, and demos
     ├── 🖼️ system-diagram.png
     ├── 🎥 demo-video.mp4
     └── 🔊 sample-audio.wav
@@ -66,150 +68,69 @@ Hardware/
 ├── 📁 Designs/
 │   ├── 📁 3D-Models/
 │   │   ├── 📄 spectacle-mount.stl
-│   │   ├── 📄 pi-case.stl
-│   │   ├── 📄 button-housing.stl
-│   │   └── 📄 cable-management.stl
-│   ├── 📁 CAD-Files/
-│   │   ├── 📄 spectacle-mount.dwg
-│   │   ├── 📄 pi-case.dwg
-│   │   └── 📄 assembly-drawing.dwg
+│   │   └── 📄 pi-case.stl
 │   └── 📁 Schematics/
 │       ├── 📄 wiring-diagram.pdf
-│       ├── 📄 circuit-schematic.pdf
 │       └── 📄 pin-configuration.pdf
 ├── 📁 Components/
 │   ├── 📄 bill-of-materials.xlsx
-│   ├── 📄 component-specifications.md
-│   ├── 📄 vendor-information.md
-│   └── 📄 cost-analysis.xlsx
-├── 📁 Assembly/
-│   ├── 📄 assembly-instructions.md
-│   ├── 📄 wiring-guide.md
-│   ├── 📄 testing-procedures.md
-│   └── 📁 Photos/
-│       ├── 🖼️ assembly-step-01.jpg
-│       ├── 🖼️ assembly-step-02.jpg
-│       └── 🖼️ final-assembly.jpg
-└── 📁 Testing/
-    ├── 📄 hardware-test-plan.md
-    ├── 📄 stress-test-results.xlsx
-    ├── 📄 durability-tests.md
-    └── 📄 power-consumption-analysis.xlsx
+│   └── 📄 component-specifications.md
+└── 📁 Assembly/
+    └── 📄 assembly-instructions.md
 ```
 
 ---
 
 ## **Software/**
-*Core application development and AI models*
+*Core application development and AI models. This is split into two key phases.*
 
 ```
 Software/
-├── 📁 airis-core/                     # Main application
-│   ├── 📄 main.py                    # Application entry point
-│   ├── 📄 config.py                  # Configuration management
-│   ├── 📄 requirements.txt           # Python dependencies
-│   ├── 📄 setup.py                   # Installation script
-│   ├── 📁 src/
-│   │   ├── 📄 __init__.py
-│   │   ├── 📁 ai_engine/
-│   │   │   ├── 📄 __init__.py
-│   │   │   ├── 📄 model_manager.py   # AI model loading/switching
-│   │   │   ├── 📄 scene_analyzer.py  # Core scene description
-│   │   │   ├── 📄 groq_client.py     # Groq API integration
-│   │   │   ├── 📄 ollama_client.py   # Ollama integration
-│   │   │   └── 📄 prompt_templates.py # Description prompts
-│   │   ├── 📁 camera/
-│   │   │   ├── 📄 __init__.py
-│   │   │   ├── 📄 camera_manager.py  # Camera control
-│   │   │   ├── 📄 image_processor.py # Image preprocessing
-│   │   │   └── 📄 button_handler.py  # Hardware button interface
-│   │   ├── 📁 audio/
-│   │   │   ├── 📄 __init__.py
-│   │   │   ├── 📄 tts_engine.py      # Text-to-speech
-│   │   │   ├── 📄 audio_manager.py   # Audio output control
-│   │   │   └── 📄 bluetooth_handler.py # Bluetooth audio
-│   │   ├── 📁 core/
-│   │   │   ├── 📄 __init__.py
-│   │   │   ├── 📄 application.py     # Main app logic
-│   │   │   ├── 📄 state_manager.py   # Application state
-│   │   │   ├── 📄 event_handler.py   # Event processing
-│   │   │   └── 📄 logger.py          # Logging system
-│   │   └── 📁 utils/
-│   │       ├── 📄 __init__.py
-│   │       ├── 📄 performance.py     # Performance monitoring
-│   │       ├── 📄 power_manager.py   # Power optimization
-│   │       └── 📄 helpers.py         # Utility functions
-│   ├── 📁 tests/
-│   │   ├── 📄 __init__.py
-│   │   ├── 📄 test_ai_engine.py
-│   │   ├── 📄 test_camera.py
-│   │   ├── 📄 test_audio.py
-│   │   ├── 📄 test_integration.py
-│   │   └── 📁 fixtures/
-│   │       ├── 🖼️ test_image_01.jpg
-│   │       ├── 🖼️ test_image_02.jpg
-│   │       └── 📄 mock_data.json
-│   ├── 📁 scripts/
-│   │   ├── 📄 install.sh             # System setup script
-│   │   ├── 📄 start_airis.sh         # Startup script
-│   │   ├── 📄 benchmark.py           # Performance testing
-│   │   └── 📄 model_downloader.py    # Download AI models
-│   └── 📁 configs/
-│       ├── 📄 default.yaml           # Default configuration
-│       ├── 📄 development.yaml       # Dev environment config
-│       └── 📄 production.yaml        # Production config
-├── 📁 models/                         # AI Models storage
-│   ├── 📁 local/
-│   │   ├── 📄 model_info.json        # Model metadata
-│   │   ├── 📁 llava-v1.5/            # Local vision-language model
-│   │   ├── 📁 blip2-opt/             # Alternative model
-│   │   └── 📄 model_comparison.md    # Performance comparison
-│   └── 📁 optimized/
-│       ├── 📄 quantized_llava.onnx   # Optimized models
-│       └── 📄 optimization_log.md    # Optimization notes
-├── 📁 tools/                         # Development tools
-│   ├── 📄 model_optimizer.py         # Model optimization tool
-│   ├── 📄 image_tester.py            # Image testing utility
-│   ├── 📄 latency_profiler.py        # Performance profiler
-│   └── 📄 dataset_generator.py       # Test data generator
-├── 📁 experiments/                    # Research and prototypes
-│   ├── 📁 model_comparison/
-│   │   ├── 📄 llava_test.py
-│   │   ├── 📄 blip2_test.py
-│   │   └── 📄 results_analysis.ipynb
-│   ├── 📁 optimization/
-│   │   ├── 📄 quantization_test.py
-│   │   └── 📄 pruning_experiment.py
-│   └── 📁 prototypes/
-│       ├── 📄 basic_camera_test.py
-│       └── 📄 tts_prototype.py
-└── 📁 deployment/                     # Deployment configurations
-    ├── 📄 Dockerfile                 # Container setup
-    ├── 📄 docker-compose.yml         # Multi-container setup
-    ├── 📁 systemd/
-    │   └── 📄 airis.service           # System service config
-    └── 📁 scripts/
-        ├── 📄 deploy.sh               # Deployment script
-        └── 📄 update.sh               # Update script
+├── 📁 prototype_v1/                   # Week 1: Formalized initial prototype
+│   ├── 📄 app.py                     # Gradio UI and main endpoint
+│   ├── 📄 pipeline.py                # Core logic for BLIP model inference
+│   ├── 📄 requirements.txt           # Dependencies for the simple prototype
+│   └── 📁 sample_videos/             # Directory for test videos
+│
+├── 📁 airis_casd_mvp/                 # Weeks 2-4: The advanced CAS-D system
+│   ├── 📄 train.py                    # Main script to run training loop
+│   ├── 📄 requirements.txt           # Dependencies for the advanced model
+│   ├── 📁 data/                     # For storing/caching datasets like ScanNet
+│   ├── 📁 notebooks/                # Jupyter notebooks for exploration
+│   └── 📁 src/
+│       ├── 📄 __init__.py
+│       ├── 📄 dataset.py              # PyTorch Dataset for ScanNet
+│       ├── 📄 model.py                # The main AIrisModel (Encoder + Decoder)
+│       ├── 📄 agent.py                # The MemoryAgent (k-means consolidation)
+│       └── 📄 config.py               # Hyperparameters and settings
+│
+└── 📁 tools/                          # Helper scripts for data management
+    └── 📄 setup_kinetics_samples.py   # Script to download sample videos
 ```
 
 ---
 
 ## **Development Phases**
 
-### **Phase 1: CSE 499A (Software Focus)**
+### **Phase 1: CSE 499A (Software Foundation)**
+*Focus on formalizing the initial prototype and building the advanced CAS-D engine.*
+
 ```
-⬜ Software/airis-core/main.py
-⬜ Software/models/local/ (AI models)
-⬜ Documentation/ai-models-research.md
+✅ Software/prototype_v1/                  # Week 1 Deliverable
+⬜ Documentation/research-summary.md       # Week 1 Deliverable
+⬜ Software/airis_casd_mvp/src/model.py    # Week 2 Deliverable
+⬜ Software/airis_casd_mvp/src/dataset.py  # Week 3 Deliverable
+⬜ Software/airis_casd_mvp/train.py        # Week 4 Deliverable
 ⬜ Class/project-proposal.pdf
 ```
 
-### **Phase 2: CSE 499B (Hardware Integration)**
+### **Phase 2: CSE 499B (Hardware Integration & Refinement)**
+*Focus on building the physical device and conducting user testing.*
 ```
-⬜ Hardware/designs/spectacle-mount.stl
-⬜ Hardware/assembly/instructions.md
+⬜ Hardware/Designs/
+⬜ Hardware/Assembly/
 ⬜ Documentation/user-manual.md
+⬜ Class/final-report.pdf
 ```
 
 ---

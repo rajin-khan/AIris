@@ -2,7 +2,7 @@
 
 # AIris Visual Identity Guide
 
-_Last updated: July 2024_  
+_Last updated: July 2025_  
 _“AI That Opens Eyes”_
 
 ---
@@ -82,10 +82,12 @@ The AIris interface uses a **dark-first palette** designed for visual comfort, r
 
 ## 🖋️ Voice & Tone
 
-- Use **calm, instructional, confident** language.
-- Descriptions should be **short**, **clear**, and **context-aware**.
-- Avoid excessive technical jargon in user-facing speech.
-- Prioritize **safety information first** in TTS output.
+- **Calm & Confident:** Use instructional, reassuring language.
+- **Clear & Concise:** Descriptions should be short, direct, and easy to understand. Avoid excessive jargon.
+- **Safety First:** Prioritize the announcement of potential hazards (obstacles, traffic, etc.) in any description.
+> - **Narrative Cohesion:** The system should synthesize individual events into a coherent story. Instead of "Man walks. Dog follows. Ball is thrown," it should say, "A man is walking, followed by his dog, as someone throws a ball."
+> - **Contextual Memory:** The tone should reflect awareness of past events. For example, it might say, "The red car is *still* parked on your left," leveraging the memory bank.
+> - **Adaptive Detail:** The level of detail should be adaptable. A quick glance might yield a simple summary, while a more focused analysis provides a richer, more descriptive narrative.
 
 ---
 
@@ -138,3 +140,4 @@ letter-spacing: 0.04em;
 ---
 
 **AIris** is more than a product. It’s a quiet companion, a real-time narrator, and a bridge to visual freedom. Design for comfort and clarity.
+</div>
