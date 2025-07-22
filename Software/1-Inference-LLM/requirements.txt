@@ -1,0 +1,11 @@
+torch
+torchvision
+torchaudio
+transformers
+opencv-python-headless
+gradio
+sentencepiece
+huggingface_hub
+requests
+groq
+python-dotenv
