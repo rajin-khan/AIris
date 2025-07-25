@@ -72,6 +72,18 @@
   </tr>
   <tr>
     <td align="center">
+      <strong>July 25</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Benchmarking on Edge Compute</strong><br/>
+      Created a Testing Framework for benchmarking Local LLM Token Generation results using Ollama on a Raspberry Pi 5 (16GB)<br/>
+      <em>Next: Narrow Down Best Model to use with Comparison and Reasoning.</em><br/>
+      <em>- Rajin/Adib, Kabbya</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <strong>[Date]</strong><br/>
       <em>[Year]</em>
     </td>
@@ -84,7 +96,7 @@
   </tr>
 </table>
 
-![Mistakes](https://img.shields.io/badge/Mistakes-❌%20×17-red?style=flat-square)
-![Coffee](https://img.shields.io/badge/Coffee-☕%20×37-brown?style=flat-square)
+![Mistakes](https://img.shields.io/badge/Mistakes-❌%20×21-red?style=flat-square)
+![Coffee](https://img.shields.io/badge/Coffee-☕%20×40-brown?style=flat-square)
 
 </div>
