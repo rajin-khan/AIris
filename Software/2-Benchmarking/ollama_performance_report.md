@@ -1,4 +1,4 @@
-# Ollama Model Performance Report
+# Ollama Model Performance Report for Raspberry Pi 5 (16GB)
 **AIris Team Benchmark Suite**
 
 Generated on: 2025-07-25 13:47:01
