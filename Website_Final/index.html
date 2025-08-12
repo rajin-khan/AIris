@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIris: The Final Presentation</title>
+
+    <!-- Google Fonts: Georgia for headings, Inter for body text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Georgia:wght@700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons from CDN -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        :root {
+            --brand-gold: #D4AF37;
+            --rich-black: #0A0A0A;
+            --dark-surface: #1A1A1A;
+            --subtle-border: #333333;
+            --off-white: #F5F5F5;
+            --muted-gray: #B0B0B0;
+            --accent-red: #FF4757;
+            --accent-green: #2ED573;
+            --glass-bg: rgba(26, 26, 26, 0.6);
+            --shadow-light: rgba(212, 175, 55, 0.1);
+            --shadow-dark: rgba(0, 0, 0, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { scroll-behavior: smooth; cursor: none; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--off-white);
+            background: var(--rich-black);
+            overflow-x: hidden;
+            line-height: 1.7;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at 70% 30%, rgba(212, 175, 55, 0.05) 0%, transparent 50%);
+            z-index: 0;
+            animation: subtle-glow 20s ease-in-out infinite alternate;
+        }
+        @keyframes subtle-glow {
+            from { transform: scale(1) translateX(0); opacity: 0.7; }
+            to { transform: scale(1.2) translateX(-5%); opacity: 1; }
+        }
+
+        .cursor { 
+            position: fixed; top: 0; left: 0; width: 8px; height: 8px; 
+            background: var(--brand-gold);
+            border-radius: 50%; pointer-events: none; 
+            transform: translate(-50%, -50%); 
+            transition: all 0.15s ease-out; 
+            z-index: 9999; 
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        }
+        .cursor-ring { 
+            position: fixed; top: 0; left: 0; width: 40px; height: 40px; 
+            border: 1px solid rgba(212, 175, 55, 0.3); 
+            border-radius: 50%; pointer-events: none; 
+            transform: translate(-50%, -50%); 
+            transition: all 0.2s ease-out; 
+            z-index: 9999; 
+        }
+        .interactive-element:hover ~ .cursor { width: 0; height: 0; opacity: 0; }
+        .interactive-element:hover ~ .cursor-ring { 
+            width: 60px; height: 60px; 
+            border-color: var(--brand-gold);
+            border-width: 2px;
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        main { position: relative; z-index: 1; }
+        .section { display: flex; flex-direction: column; justify-content: center; min-height: 100vh; padding: 100px 5vw; max-width: 1300px; margin: auto; position: relative; opacity: 0; transition: opacity 0.8s ease-in-out; }
+        .section.active { opacity: 1; }
+        
+        .slide-number { position: absolute; top: 40px; left: 5vw; font-family: 'Georgia', serif; font-size: 1rem; color: #444; font-weight: 700; letter-spacing: 2px; }
+        
+        h1, h2, h3 { font-family: 'Georgia', serif; font-weight: 700; }
+        h1 { 
+            font-size: clamp(4rem, 12vw, 10rem); line-height: 1; text-align: center; 
+            background: linear-gradient(135deg, #EADBC8, var(--brand-gold));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
+        }
+        h2 { 
+            font-size: clamp(2.8rem, 5vw, 4.5rem); margin-bottom: 40px; padding-bottom: 20px; color: var(--off-white); 
+            border-bottom: 1px solid var(--subtle-border);
+        }
+        h3 { font-size: 1.5rem; color: var(--off-white); display: flex; align-items: center; gap: 12px; }
+        
+        p { font-size: 1.25rem; line-height: 1.8; margin-bottom: 20px; max-width: 70ch; color: var(--muted-gray); font-weight: 300; }
+        p strong { color: var(--off-white); font-weight: 600; }
+        .subtitle { font-size: 1.8rem; color: var(--muted-gray); text-align: center; margin-top: 30px; font-weight: 300; }
+
+        .fade-in-up { opacity: 0; transform: translateY(50px); transition: opacity 1.2s cubic-bezier(0.19, 1, 0.22, 1), transform 1.2s cubic-bezier(0.19, 1, 0.22, 1); }
+        .active .fade-in-up { opacity: 1; transform: translateY(0); }
+        .stagger-container.active .stagger-item { opacity: 1; transform: translateY(0); }
+        .stagger-item { opacity: 0; transform: translateY(30px); transition: opacity 0.8s ease, transform 0.8s ease; }
+
+        .grid-container { display: grid; gap: 30px; margin-top: 40px; }
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); }
+        
+        .card { 
+            background: var(--glass-bg); backdrop-filter: blur(12px);
+            border-radius: 20px; padding: 40px; 
+            border: 1px solid var(--subtle-border); 
+            transition: all 0.4s ease;
+            box-shadow: 0 15px 30px var(--shadow-dark), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+        .card:hover { 
+            transform: translateY(-8px); 
+            border-color: rgba(212, 175, 55, 0.5);
+            box-shadow: 0 25px 50px var(--shadow-dark), 0 0 40px var(--shadow-light);
+        }
+        .card .icon { color: var(--brand-gold); margin-bottom: 15px; }
+
+        .placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--subtle-border); border-radius: 16px; padding: 40px; text-align: center; color: var(--muted-gray); background-color: rgba(0,0,0,0.2); min-height: 400px; transition: background-color 0.3s, border-color 0.3s; }
+        .placeholder:hover { background-color: rgba(201, 172, 120, 0.05); border-color: var(--brand-gold); }
+        .placeholder .icon { margin-bottom: 20px; width: 48px; height: 48px; color: var(--brand-gold); opacity: 0.7; }
+        
+        /* ========== NEW & IMPROVED TABLE STYLES ========== */
+        .styled-table { 
+            width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 40px; 
+            background: var(--glass-bg); backdrop-filter: blur(12px); 
+            border-radius: 16px; border: 1px solid var(--subtle-border); overflow: hidden; 
+            box-shadow: 0 15px 30px var(--shadow-dark);
+        }
+        .styled-table th, .styled-table td { 
+            padding: 18px 25px; text-align: left; 
+            border-bottom: 1px solid var(--subtle-border); 
+            transition: background-color 0.3s ease;
+            vertical-align: middle;
+        }
+        .styled-table th { 
+            background: rgba(26, 26, 26, 0.8); color: var(--brand-gold); 
+            font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+        .styled-table tr:hover td { background-color: rgba(201, 172, 120, 0.05); }
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table td { font-size: 1.1rem; }
+        .styled-table .monospace {
+            font-family: monospace;
+            background-color: rgba(0,0,0,0.3);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .styled-table .success { color: var(--accent-green); font-weight: 600; }
+        .styled-table .fail { color: var(--accent-red); font-weight: 600; }
+        .styled-table .low-score { color: var(--accent-red); }
+        .styled-table .low-score small { color: var(--accent-red); opacity: 0.8; }
+        .styled-table small { color: var(--muted-gray); display: block; margin-top: 4px; font-size: 0.8rem; font-style: italic; font-weight: 300; }
+
+        #architecture-svg { width: 100%; height: auto; max-width: 900px; filter: drop-shadow(0 15px 30px rgba(0,0,0,0.5)); }
+        #architecture-svg .box { fill: var(--glass-bg); stroke: var(--subtle-border); stroke-width: 1.5; }
+        #architecture-svg text { fill: var(--muted-gray); font-family: 'Inter', sans-serif; font-size: 15px; }
+        #architecture-svg .title { fill: var(--off-white); font-weight: 600; font-size: 18px; }
+        #architecture-svg .arrow { stroke: var(--brand-gold); stroke-width: 2.5; marker-end: url(#arrowhead); stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw 1s ease-out forwards; filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.7)); }
+        @keyframes draw { to { stroke-dashoffset: 0; } }
+
+        .navigation { position: fixed; bottom: 40px; right: 40px; z-index: 1000; }
+        .nav-btn { position: relative; width: 72px; height: 72px; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--subtle-border); border-radius: 50%; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 30px var(--shadow-dark); }
+        .nav-btn:hover { transform: scale(1.1); background: rgba(212, 175, 55, 0.1); border-color: var(--brand-gold); }
+        .nav-btn svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+        .nav-btn .progress-ring-bg { stroke: var(--subtle-border); opacity: 0.5; }
+        .nav-btn .progress-ring-fg { stroke: var(--brand-gold); transition: stroke-dashoffset 0.4s ease; }
+        .nav-btn.is-hidden { opacity: 0; transform: scale(0.8); pointer-events: none; }
+        
+        @media (max-width: 768px) {
+            .section { padding: 80px 5vw; }
+            .grid-2 { grid-template-columns: 1fr; }
+            .navigation { bottom: 20px; right: 20px; }
+            .nav-btn { width: 60px; height: 60px; }
+            p { font-size: 1.1rem; }
+            .subtitle { font-size: 1.5rem; }
+        }
+
+        #slide1 .content-wrapper { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        #slide1 .subtitle-tagline { font-size: 2.5rem; margin-top: 2rem; color: var(--brand-gold); opacity: 0.8; font-style: normal; font-family: 'Georgia', serif; }
+        #slide1 .subtitle-names { margin-top: 4rem; font-size: 1.2rem; font-weight: 600; letter-spacing: 1px; color: var(--off-white); }
+        #slide1 .subtitle-course { font-size: 1rem; color: var(--muted-gray); font-weight: 400; }
+
+        #slide5 .content-wrapper { width: 100%; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        #slide5 .diagram-container { width: 100%; max-width: 1000px; margin-top: 40px; padding: 40px; background: var(--glass-bg); backdrop-filter: blur(10px); border: 1px solid var(--subtle-border); border-radius: 20px; box-shadow: 0 15px 30px var(--shadow-dark); }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <div class="cursor-ring"></div>
+
+    <main>
+        <!-- Slides 1-7 remain the same -->
+        <section id="slide1" class="section active"><div class="content-wrapper"><h1 class="fade-in-up">AIris</h1><p class="subtitle subtitle-tagline fade-in-up" style="transition-delay: 0.3s;">AI That Opens Eyes</p><div class="subtitle-names fade-in-up" style="transition-delay: 0.5s;">Rajin Khan & Saumik Saha Kabbya<p class="subtitle-course">CSE 499A/B Final Presentation</p></div></div></section>
+        <section id="slide2" class="section stagger-container"><div class="slide-number">02 / 11</div><h2 class="fade-in-up">The Problem: A Compromised Experience</h2><p class="fade-in-up" style="transition-delay: 0.2s;">For millions with visual impairments, existing assistive technologies are a frustrating compromise. They provide fragmented data instead of holistic understanding, creating a barrier to true independence.</p><table class="styled-table stagger-item" style="transition-delay: 0.4s;"><thead><tr><th>Limitation</th><th>Existing Solutions</th><th style="color:var(--charcoal);">The AIris Approach</th></tr></thead><tbody><tr><td><strong>Latency</strong></td><td>Slow, multi-step processes<small>5-10+ seconds response time</small></td><td><strong>Instant, sub-2-second response</strong></td></tr><tr><td><strong>Context</strong></td><td>Simple object labels<small>"chair", "person"</small></td><td><strong>Rich scene descriptions</strong><small>"A person is walking towards you"</small></td></tr><tr><td><strong>Reliability</strong></td><td>Internet dependent<small>Fails without connectivity</small></td><td><strong>Offline-first architecture</strong><small>Go-anywhere functionality</small></td></tr><tr><td><strong>Interaction</strong></td><td>Smartphone required<small>Hands and focus needed</small></td><td><strong>Hands-free wearable</strong><small>Single-button design</small></td></tr></tbody></table></section>
+        <section id="slide3" class="section"><div class="slide-number">03 / 11</div><h2 class="fade-in-up">Our Vision: Seamless Awareness</h2><p class="fade-in-up" style="transition-delay: 0.2s; font-size: 1.4rem;">We introduce AIris, a wearable AI system designed to provide <strong>real-time, contextual awareness</strong>, bridging the gap between the user and their environment. It’s not just about seeing—it’s about understanding.</p></section>
+        <section id="slide4" class="section"><div class="slide-number">04 / 11</div><h2 class="fade-in-up">The Core Challenge</h2><p class="fade-in-up subtitle card interactive-element" style="transition-delay: 0.2s; font-size: 2rem; max-width: 30ch; margin: 40px auto; padding: 40px;">How do we transform a raw video stream into an <strong style="color:var(--brand-gold)">actionable, safe, and instant</strong> audio description?</p></section>
+        <section id="slide5" class="section"><div class="slide-number">05 / 11</div><h2 class="fade-in-up">Our System Architecture</h2><div class="content-wrapper"><p class="fade-in-up" style="transition-delay: 0.2s;">We designed a hybrid, two-stage pipeline that balances local speed with the intelligence of large language models.</p><div class="diagram-container fade-in-up" style="transition-delay: 0.4s;"><svg id="architecture-svg" viewBox="0 0 800 350"><defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="var(--brand-gold)" /></marker></defs><rect class="box" x="20" y="125" width="220" height="100" rx="15"></rect><rect class="box" x="290" y="75" width="220" height="200" rx="15"></rect><rect class="box" x="560" y="125" width="220" height="100" rx="15"></rect><text class="title" x="130" y="165" text-anchor="middle">Local Vision (BLIP)</text><text x="130" y="190" text-anchor="middle">Frame Analysis</text><text class="title" x="400" y="130" text-anchor="middle">LLM Reasoning (Groq)</text><text x="400" y="160" text-anchor="middle">Context Synthesis</text><text x="400" y="185" text-anchor="middle">& Prompt Engineering</text><text class="title" x="670" y="165" text-anchor="middle">User Output</text><text x="670" y="190" text-anchor="middle">Assistive Description</text><path class="arrow" d="M245,175 L285,175" style="animation-delay: 0.5s;"></path><path class="arrow" d="M515,175 L555,175" style="animation-delay: 0.8s;"></path></svg></div></div></section>
+        <section id="slide6" class="section stagger-container"><div class="slide-number">06 / 11</div><h2 class="fade-in-up">Innovation: Task-Specific Prompting</h2><p class="fade-in-up" style="transition-delay: 0.2s;">The key isn't just a better model; it's making the model think correctly. We engineered the AI's "brain" to think like an assistive expert, not a generic image describer, by using highly constrained, rule-based prompts.</p><table class="styled-table stagger-item" style="transition-delay: 0.4s;"><thead><tr><th>Prompt Type</th><th>Example Output</th><th style="color:var(--charcoal);">Result</th></tr></thead><tbody><tr><td><strong>Generic Prompt</strong><br><small>"Describe this image."</small></td><td>"there is a bed with a white comforter and a window"</td><td class="fail">Unhelpful & Lacks Context</td></tr><tr><td><strong>AIris Navigation Prompt</strong><br><small>"Synthesize observations into a concise description..."</small></td><td>"You are in a bedroom. There is a bed with a white comforter in front of you. A clear path is to your left."</td><td style="color:var(--accent-green); font-weight:600;">Actionable & Context-Aware</td></tr></tbody></table></section>
+        <section id="slide7" class="section"><div class="slide-number">07 / 11</div><h2 class="fade-in-up">Live Demonstration</h2><div class="placeholder fade-in-up interactive-element" style="transition-delay: 0.2s; min-height: 50vh;"><!-- ACTION: Record your screen running the `indoor_nav_01.mp4` example. --><!-- Save as `demo.mp4` and replace this div with the <video> tag below. --><video src="./assets/demo.mp4" controls autoplay muted loop style="max-width: 100%; border-radius: 16px;"></video></div></section>
+
+        <!-- ========== SLIDE 8: THE UPGRADED TABLE ========== -->
+        <section id="slide8" class="section stagger-container">
+            <div class="slide-number">08 / 11</div>
+            <h2 class="fade-in-up">Honest, Data-Driven Evaluation</h2>
+            <div class="stagger-item" style="transition-delay: 0.2s;">
+                 <table class="styled-table">
+                    <thead>
+                        <tr>
+                            <th>Video ID</th>
+                            <th>Latency (s)</th>
+                            <th>Semantic Helpfulness</th>
+                            <th>Task Success</th>
+                            <th>Safety Score</th>
+                            <th>LLM Used</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="monospace">indoor_nav_01.mp4</span></td>
+                            <td>14.09s</td>
+                            <td>0.87</td>
+                            <td class="success">Yes</td>
+                            <td>1</td>
+                            <td><span class="monospace">openai/gpt-oss-120b</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="monospace">object_find_01.mp4</span></td>
+                            <td>5.61s</td>
+                            <td>0.75</td>
+                            <td class="fail">No</td>
+                            <td>N/A</td>
+                            <td><span class="monospace">openai/gpt-oss-120b</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="monospace">dynamic_hazard_01.mp4</span></td>
+                            <td>16.86s</td>
+                            <td class="low-score">
+                                <strong>0.40</strong>
+                                <small>(Critically Low)</small>
+                            </td>
+                            <td class="fail">No</td>
+                            <td class="fail">0</td>
+                            <td><span class="monospace">openai/gpt-oss-120b</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="stagger-item" style="margin-top: 40px; transition-delay: 0.4s;">
+                <p>We tested AIris on our custom dataset. The results show a promising foundation but also highlight clear areas for improvement in latency, task specificity, and most critically, safety reliability.</p>
+            </div>
+        </section>
+
+        <!-- Slides 9-11 remain the same -->
+        <section id="slide9" class="section stagger-container"><div class="slide-number">09 / 11</div><h2 class="fade-in-up">Project Status & The Path Forward</h2><div class="grid-container grid-2"><div class="card stagger-item interactive-element" style="transition-delay: 0.2s;"><h3><i class="icon" data-lucide="check-circle"></i> What We've Achieved (499A)</h3><p>We have built and validated a complete software core. Our evaluation has successfully identified its strengths (contextual summarization) and critical weaknesses (latency, safety reliability).</p></div><div class="card stagger-item interactive-element" style="transition-delay: 0.4s; border-color:var(--brand-gold);"><h3><i class="icon" data-lucide="arrow-right-circle"></i> Where We're Going (499B)</h3><p>Our focus shifts to solving the challenges identified. We will integrate this software into our Raspberry Pi 5 hardware, aggressively optimize for latency, and re-engineer our hazard detection model for uncompromising safety and reliability.</p></div></div></section>
+        <section id="slide10" class="section"><div class="slide-number">10 / 11</div><h2 class="fade-in-up">Conclusion</h2><p class="fade-in-up" style="transition-delay: 0.2s;">AIris represents an ambitious step towards true visual independence. Through our innovative hybrid architecture and task-specific prompting, we've laid the foundation for a powerful assistive tool. Our honest, data-driven evaluation now gives us a clear path to transform this promising software core into a reliable, real-world device.</p><p class="subtitle fade-in-up" style="font-size: 2.5rem; transition-delay: 0.4s;">"AI That Opens Eyes."</p></section>
+        <section id="slide11" class="section"><h1 class="fade-in-up">Q&A</h1><p class="subtitle fade-in-up" style="transition-delay: 0.2s;">Thank you.</p></section>
+    </main>
+    
+    <div class="navigation">
+        <button id="navBtn" class="nav-btn interactive-element">
+             <svg width="72" height="72" viewBox="0 0 72 72">
+                <circle class="progress-ring-bg" cx="36" cy="36" r="34" stroke-width="3" fill="transparent"/>
+                <circle class="progress-ring-fg" cx="36" cy="36" r="34" fill="transparent" stroke-width="3"/>
+            </svg>
+        </button>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const sections = Array.from(document.querySelectorAll('.section'));
+        const cursor = document.querySelector('.cursor');
+        const cursorRing = document.querySelector('.cursor-ring');
+        const navBtn = document.getElementById('navBtn');
+        const progressRing = document.querySelector('.progress-ring-fg');
+        const radius = progressRing.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+        
+        progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+        
+        let currentSectionIndex = 0;
+        let isScrolling = false;
+        
+        let mouseX = 0, mouseY = 0, cursorX = 0, cursorY = 0;
+        function smoothCursor() {
+            const ease = 0.1;
+            cursorX += (mouseX - cursorX) * ease;
+            cursorY += (mouseY - cursorY) * ease;
+            cursor.style.transform = `translate(${cursorX}px, ${cursorY}px)`;
+            cursorRing.style.transform = `translate(${cursorX - 20}px, ${cursorY - 20}px)`;
+            requestAnimationFrame(smoothCursor);
+        }
+        window.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+        smoothCursor();
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    sections.forEach(sec => sec.classList.remove('active'));
+                    entry.target.classList.add('active');
+                    currentSectionIndex = sections.indexOf(entry.target);
+                    updateProgress();
+                    
+                    const staggerItems = entry.target.querySelectorAll('.stagger-item');
+                    staggerItems.forEach((item, index) => {
+                        item.style.transitionDelay = `${0.2 + index * 0.1}s`;
+                    });
+                }
+            });
+        }, { threshold: 0.6 });
+        
+        sections.forEach(section => observer.observe(section));
+
+        function updateProgress() {
+            const progress = currentSectionIndex / (sections.length - 1);
+            const offset = circumference - progress * circumference;
+            progressRing.style.strokeDashoffset = offset;
+            navBtn.classList.toggle('is-hidden', currentSectionIndex >= sections.length - 1);
+        }
+
+        navBtn.addEventListener('click', () => {
+            if (isScrolling) return;
+            const nextIndex = currentSectionIndex + 1;
+            if (nextIndex < sections.length) {
+                isScrolling = true;
+                sections[nextIndex].scrollIntoView({ behavior: 'smooth' });
+                setTimeout(() => { isScrolling = false; }, 1000);
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (isScrolling) return;
+            let targetIndex = currentSectionIndex;
+            if (e.key === 'ArrowDown' || e.key === ' ') {
+                e.preventDefault();
+                targetIndex = Math.min(currentSectionIndex + 1, sections.length - 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                targetIndex = Math.max(currentSectionIndex - 1, 0);
+            }
+            if (targetIndex !== currentSectionIndex) {
+                isScrolling = true;
+                sections[targetIndex].scrollIntoView({ behavior: 'smooth' });
+                setTimeout(() => { isScrolling = false; }, 1000);
+            }
+        });
+
+        lucide.createIcons();
+        updateProgress();
+    });
+    </script>
+</body>
+</html>
