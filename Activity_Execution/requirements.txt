@@ -6,3 +6,5 @@ torchvision
 mediapipe
 Pillow
 lap
+groq
+python-dotenv
