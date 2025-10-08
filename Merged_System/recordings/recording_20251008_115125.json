@@ -1,0 +1,21 @@
+{
+    "session_start": "2025-10-08T11:51:25.039397",
+    "duration_minutes": 30,
+    "events": [
+        {
+            "timestamp": "2025-10-08T11:51:25.039430",
+            "event": "recording_resumed"
+        },
+        {
+            "timestamp": "2025-10-08T11:51:43.246243",
+            "summary": "A man is taking a selfie while wearing earphones.",
+            "raw_descriptions": [
+                "there is a man that is holding a cell phone and earphones",
+                "there is a man that is holding a cell phone in his hand",
+                "there is a man with earphones on making a peace sign"
+            ],
+            "flag": "None"
+        }
+    ],
+    "session_end": "2025-10-08T11:52:02.505914"
+}
