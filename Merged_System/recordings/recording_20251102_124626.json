@@ -1,0 +1,25 @@
+{
+    "session_start": "2025-11-02T12:46:26.161511",
+    "events": [
+        {
+            "timestamp": "2025-11-02T12:46:59.506554",
+            "summary": "A man is using a piece of foil to boost his cell phone signal while talking on the phone.",
+            "raw_descriptions": [
+                "there is a man holding a cell phone up to his ear",
+                "there is a man that is sitting at a table with a cell phone",
+                "there is a man holding a piece of foil in his hand"
+            ],
+            "flag": "None"
+        },
+        {
+            "timestamp": "2025-11-02T12:47:29.613469",
+            "summary": "A man is eating while looking at his phone.",
+            "raw_descriptions": [
+                "there is a man sitting at a table with a cell phone",
+                "there is a man sitting at a table with a plate of food"
+            ],
+            "flag": "None"
+        }
+    ],
+    "session_end": "2025-11-02T12:47:37.816106"
+}

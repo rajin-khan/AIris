@@ -1,0 +1,23 @@
+Task Completed Successfully!
+
+Great, task complete!
+
+Your hand is at the object. Can you confirm if this is correct? Please use the Yes or No buttons.
+
+Slowly move your hand from your left across your chest to your right, keeping it at chest level, until you feel the watch.
+
+Move your hand slowly to your right, reaching straight out toward the watch.
+
+Move your hand slowly to your right, keeping it at chest level, until you feel the watch.
+
+Move your hand slowly to your right and forward until you feel the watch.
+
+Move your hand upward and slightly forward, keeping it to your right, until it reaches chest level.
+
+I can't see your hand. Please bring it into view.
+
+I see something that could be the watch, but it looks like a clock. I will guide you to it for verification.
+
+I am looking for the watch. Please scan the area.
+
+Okay, let's find the watch.
