@@ -35,6 +35,10 @@ class ActivityGuideService:
         self.object_last_seen_time = None
         self.object_disappeared_notified = False
         
+        # Feedback tracking - to adjust behavior after failed attempts
+        self.failed_attempts = 0
+        self.last_failed_reason = None  # "depth", "misclassification", or "unknown"
+        
         # Constants
         self.CONFIDENCE_THRESHOLD = 0.5
         self.DISTANCE_THRESHOLD_PIXELS = 100
@@ -48,13 +52,15 @@ class ActivityGuideService:
             # Try alternative path
             self.FONT_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'Merged_System', 'RobotoCondensed-Regular.ttf')
         
-        # Object aliases
+        # Object aliases - only used when primary object is NOT found
+        # Note: Removed cell phone -> remote alias as it caused false matches
         self.OBJECT_ALIASES = {
-            "cell phone": ["remote"],
+            "phone": ["cell phone"],  # "phone" can match "cell phone" (YOLO label)
             "watch": ["clock"],
             "bottle": ["cup", "mug"]
         }
-        self.VERIFICATION_PAIRS = [("cell phone", "remote"), ("watch", "clock")]
+        # Pairs that need verification (visually similar objects)
+        self.VERIFICATION_PAIRS = [("watch", "clock")]
     
     def _init_groq(self):
         """Initialize Groq client with GPT-OSS 120B model"""
@@ -133,10 +139,10 @@ class ActivityGuideService:
             traceback.print_exc()
             self.groq_client = None
     
-    def _get_groq_response(self, prompt: str, system_prompt: str = "You are a helpful assistant.", model: str = "openai/gpt-oss-120b") -> str:
-        """Get response from Groq API using GPT-OSS 120B model"""
+    def _get_groq_response(self, prompt: str, system_prompt: str = "You are a helpful assistant.", model: str = "openai/gpt-oss-120b") -> Optional[str]:
+        """Get response from Groq API using GPT-OSS 120B model. Returns None if unavailable."""
         if not self.groq_client:
-            return "LLM Client not initialized. Please set GROQ_API_KEY in your .env file. Get your key from https://console.groq.com/keys"
+            return None  # Return None so callers can use fallback
         try:
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -149,7 +155,7 @@ class ActivityGuideService:
             return chat_completion.choices[0].message.content
         except Exception as e:
             print(f"Error calling Groq API: {e}")
-            return f"Error: {e}"
+            return None  # Return None so callers can use fallback
     
     async def start_task(self, goal: str, target_objects: Optional[List[str]] = None) -> Dict[str, Any]:
         """Start a new task"""
@@ -160,6 +166,13 @@ class ActivityGuideService:
         self.object_last_seen_time = None
         self.object_disappeared_notified = False
         
+        # Reset feedback tracking and adaptive thresholds
+        self.failed_attempts = 0
+        self.last_failed_reason = None
+        self.CONFIDENCE_THRESHOLD = 0.5  # Reset to default
+        if hasattr(self, 'DEPTH_STRICTNESS_MULTIPLIER'):
+            del self.DEPTH_STRICTNESS_MULTIPLIER
+        
         # Extract target objects if not provided
         if target_objects is None:
             prompts = self.model_service.get_prompts()
@@ -167,13 +180,12 @@ class ActivityGuideService:
             
             print(f"Extracting target object from goal: '{goal}'")
             response = self._get_groq_response(extraction_prompt)
-            print(f"LLM extraction response: {response}")
             
             # Check if LLM client is not initialized or returned an error
-            if not response or "not initialized" in response.lower() or "error:" in response.lower():
-                print("⚠️  LLM extraction failed, falling back to direct goal parsing")
-                # Fall back to direct goal parsing
-                response = None
+            if not response:
+                print("⚠️  LLM unavailable, falling back to direct goal parsing")
+            else:
+                print(f"LLM extraction response: {response}")
             
             try:
                 target_extracted = False
@@ -479,10 +491,16 @@ class ActivityGuideService:
                 )
                 
                 if reached:
+                    # Calculate depth ratio for logging
+                    hand_area = (closest_hand['box'][2] - closest_hand['box'][0]) * (closest_hand['box'][3] - closest_hand['box'][1])
+                    obj_area = (target_box[2] - target_box[0]) * (target_box[3] - target_box[1])
+                    depth_ratio_log = obj_area / hand_area if hand_area > 0 else 0
+                    
                     print(f"✓✓✓ SUCCESS: Hand reached object!")
                     print(f"   Distance: {distance:.1f}px (threshold: <{self.DISTANCE_THRESHOLD_PIXELS}px)")
                     print(f"   IOU: {iou:.3f} (threshold: >{self.OCCLUSION_IOU_THRESHOLD})")
                     print(f"   Overlap ratio: {overlap_ratio:.3f} (threshold: >0.4)")
+                    print(f"   Depth ratio: {depth_ratio_log:.2f} (valid range: 0.3-3.0)")
                     print(f"   Transitioning to stage: {self.next_stage_after_guiding}")
                     self.guidance_stage = self.next_stage_after_guiding
                 elif not object_still_visible and self.object_last_seen_time is not None:
@@ -514,19 +532,32 @@ class ActivityGuideService:
                                 break
                     
                     # Generate directional guidance
-                    prompts = self.model_service.get_prompts()
-                    system_prompt = prompts.get('activity_guide', {}).get('guidance_system', '')
-                    user_prompt = prompts.get('activity_guide', {}).get('guidance_user', '').format(
-                        hand_location=self._describe_location_detailed(closest_hand['box'], frame.shape),
-                        primary_target=primary_target,
-                        object_location=self._describe_location_detailed(target_box, frame.shape)
-                    )
-                    
                     h, w = frame.shape[:2]
                     distance_desc = self._get_distance_description(distance, w)
-                    user_prompt += f"\n\nYour hand is {distance_desc} from the object."
                     
-                    llm_guidance = self._get_groq_response(user_prompt, system_prompt)
+                    # Calculate depth estimation from bounding box sizes
+                    depth_info = self._estimate_depth(closest_hand['box'], target_box, frame.shape)
+                    
+                    # Try LLM first, fallback to rule-based guidance
+                    llm_guidance = None
+                    if self.groq_client:
+                        prompts = self.model_service.get_prompts()
+                        system_prompt = prompts.get('activity_guide', {}).get('guidance_system', '')
+                        user_prompt = prompts.get('activity_guide', {}).get('guidance_user', '').format(
+                            hand_location=self._describe_location_detailed(closest_hand['box'], frame.shape),
+                            primary_target=primary_target,
+                            object_location=self._describe_location_detailed(target_box, frame.shape)
+                        )
+                        user_prompt += f"\n\nYour hand is {distance_desc} from the object."
+                        user_prompt += f"\n\nDepth estimation: {depth_info}"
+                        llm_guidance = self._get_groq_response(user_prompt, system_prompt)
+                    
+                    # Use rule-based fallback if LLM unavailable or failed
+                    if not llm_guidance:
+                        llm_guidance = self._generate_rule_based_guidance(
+                            closest_hand['box'], target_box, primary_target, distance, frame.shape
+                        )
+                    
                     self._update_instruction(llm_guidance)
     
     def _update_instruction(self, new_instruction: str):
@@ -541,13 +572,16 @@ class ActivityGuideService:
                 self.instruction_history = self.instruction_history[:20]
     
     def _describe_location_detailed(self, box: List[float], frame_shape: Tuple) -> str:
-        """Describe object location in detail"""
+        """Describe object location in detail (corrected for front-facing camera mirror effect)"""
         h, w = frame_shape[:2]
         center_x, center_y = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
-        h_pos = "to your left" if center_x < w / 3 else "to your right" if center_x > 2 * w / 3 else "in front of you"
+        # INVERTED left/right for front-facing camera
+        # Object on left of frame = actually on user's right, and vice versa
+        h_pos = "to your right" if center_x < w / 3 else "to your left" if center_x > 2 * w / 3 else "in front of you"
         v_pos = "in the upper part" if center_y < h / 3 else "in the lower part" if center_y > 2 * h / 3 else "at chest level"
+        # Depth estimation from box size (larger = closer to camera = farther from user's body)
         relative_area = ((box[2] - box[0]) * (box[3] - box[1])) / (w * h)
-        dist = "and appears very close" if relative_area > 0.1 else "and appears to be within reach" if relative_area > 0.03 else "and seems a bit further away"
+        dist = "and is farther from your body" if relative_area > 0.1 else "and appears to be within reach" if relative_area > 0.03 else "and is closer to your body"
         return f"{v_pos} and {h_pos}, {dist}" if h_pos != "in front of you" else f"{h_pos}, {v_pos}, {dist}"
     
     def _get_distance_description(self, distance_pixels: float, frame_width: int) -> str:
@@ -563,6 +597,124 @@ class ActivityGuideService:
             return "nearby"
         else:
             return "some distance away"
+    
+    def _estimate_depth(self, hand_box: List[float], object_box: List[float], frame_shape: Tuple) -> str:
+        """Estimate relative depth between hand and object based on bounding box sizes.
+        
+        For FRONT-FACING camera (webcam facing user):
+        - Larger bounding box = closer to camera = FARTHER from user's body
+        - Smaller bounding box = farther from camera = CLOSER to user's body
+        """
+        h, w = frame_shape[:2]
+        frame_area = w * h
+        
+        # Calculate bounding box areas
+        hand_area = (hand_box[2] - hand_box[0]) * (hand_box[3] - hand_box[1])
+        object_area = (object_box[2] - object_box[0]) * (object_box[3] - object_box[1])
+        
+        # Normalize relative to frame
+        hand_relative = hand_area / frame_area
+        object_relative = object_area / frame_area
+        
+        # Calculate depth ratio
+        if hand_relative <= 0:
+            return "Unable to estimate depth - hand not clearly visible."
+        
+        depth_ratio = object_relative / hand_relative
+        
+        # Interpret the ratio (corrected for front-facing camera)
+        if depth_ratio < 0.3:
+            return "The object is much closer to your body than your hand. Pull your hand back towards yourself."
+        elif depth_ratio < 0.5:
+            return "The object is closer to your body. Move your hand back towards you."
+        elif depth_ratio < 0.7:
+            return "The object is slightly closer to your body. Bring your hand back a bit."
+        elif depth_ratio < 1.3:
+            return "Your hand and the object are at roughly the same distance from your body. Focus on left/right and up/down alignment."
+        elif depth_ratio < 2.0:
+            return "The object is slightly farther out than your hand. Extend your hand outward a bit."
+        elif depth_ratio < 3.0:
+            return "The object is farther from your body than your hand. Reach outward."
+        else:
+            return "The object is much farther out. Extend your arm forward, away from your body."
+    
+    def _generate_rule_based_guidance(self, hand_box: List[float], object_box: List[float], 
+                                       target_name: str, distance: float, frame_shape: Tuple) -> str:
+        """Generate simple directional guidance without LLM, including depth estimation"""
+        h, w = frame_shape[:2]
+        
+        hand_center = self._get_box_center(hand_box)
+        object_center = self._get_box_center(object_box)
+        
+        # Calculate direction from hand to object
+        dx = object_center[0] - hand_center[0]  # positive = object is to the right
+        dy = object_center[1] - hand_center[1]  # positive = object is below
+        
+        # Calculate bounding box areas for depth estimation
+        # Larger box = closer to camera, smaller box = farther from camera
+        hand_area = (hand_box[2] - hand_box[0]) * (hand_box[3] - hand_box[1])
+        object_area = (object_box[2] - object_box[0]) * (object_box[3] - object_box[1])
+        
+        # Normalize areas relative to frame
+        frame_area = w * h
+        hand_relative_size = hand_area / frame_area
+        object_relative_size = object_area / frame_area
+        
+        # Estimate depth difference based on relative sizes
+        # With a FRONT-FACING camera (webcam/selfie style):
+        # - Object appears smaller = farther from camera = CLOSER to user's body
+        # - Object appears larger = closer to camera = FARTHER from user's body
+        depth_ratio = object_relative_size / hand_relative_size if hand_relative_size > 0 else 1.0
+        
+        # Determine primary direction(s)
+        directions = []
+        
+        # Depth direction (forward/back) - adjusted for front-facing camera
+        if depth_ratio < 0.4:
+            # Object is much smaller = farther from camera = closer to user's body
+            # User needs to pull hand BACK towards their body
+            directions.append("back towards you")
+        elif depth_ratio > 2.5:
+            # Object is much larger = closer to camera = farther from user's body
+            # User needs to reach OUT/FORWARD away from their body
+            directions.append("forward away from you")
+        
+        # Horizontal direction (INVERTED for front-facing camera mirror effect)
+        if abs(dx) > w * 0.05:  # More than 5% of frame width
+            if dx > 0:
+                # Object appears on right side of frame = actually on user's LEFT
+                directions.append("left")
+            else:
+                # Object appears on left side of frame = actually on user's RIGHT
+                directions.append("right")
+        
+        # Vertical direction
+        if abs(dy) > h * 0.05:  # More than 5% of frame height
+            if dy > 0:
+                directions.append("down")
+            else:
+                directions.append("up")
+        
+        # Get distance description
+        distance_desc = self._get_distance_description(distance, w)
+        
+        # Build instruction with depth context (for front-facing camera)
+        depth_context = ""
+        if depth_ratio < 0.4:
+            depth_context = f" The {target_name} is closer to your body than your hand."
+        elif depth_ratio > 2.5:
+            depth_context = f" The {target_name} is farther out, away from your body."
+        elif 0.7 < depth_ratio < 1.4:
+            depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
+        
+        # Build final instruction
+        if not directions:
+            return f"Your hand is {distance_desc} the {target_name}. Keep reaching forward.{depth_context}"
+        elif len(directions) == 1:
+            return f"Move your hand {directions[0]}. The {target_name} is {distance_desc}.{depth_context}"
+        else:
+            direction_str = ", ".join(directions[:-1]) + " and " + directions[-1]
+            return f"Move your hand {direction_str}. The {target_name} is {distance_desc}.{depth_context}"
     
     def _get_box_center(self, box: List[float]) -> List[float]:
         """Calculate center of a bounding box"""
@@ -593,7 +745,10 @@ class ActivityGuideService:
         return (xB - xA) * (yB - yA)
     
     def _is_hand_at_object(self, hand_box: List[float], object_box: List[float], frame_shape: Tuple) -> Tuple[bool, float, float, float]:
-        """Determine if hand has reached the object"""
+        """Determine if hand has reached the object, including depth similarity check"""
+        h, w = frame_shape[:2]
+        frame_area = w * h
+        
         hand_center = self._get_box_center(hand_box)
         object_center = self._get_box_center(object_box)
         
@@ -603,17 +758,49 @@ class ActivityGuideService:
         object_area = (object_box[2] - object_box[0]) * (object_box[3] - object_box[1])
         overlap_ratio = overlap_area / object_area if object_area > 0 else 0
         
-        reached = (
+        # Calculate depth similarity based on bounding box sizes
+        hand_area = (hand_box[2] - hand_box[0]) * (hand_box[3] - hand_box[1])
+        
+        # Depth ratio: how similar are the apparent sizes?
+        # Ratio close to 1.0 = similar depth
+        depth_ratio = (object_area / hand_area) if hand_area > 0 else 0
+        
+        # Depth is considered "similar" if ratio is within acceptable range
+        # Range can be tightened after failed attempts (via DEPTH_STRICTNESS_MULTIPLIER)
+        strictness = getattr(self, 'DEPTH_STRICTNESS_MULTIPLIER', 1.0)
+        min_depth_ratio = 0.3 / strictness  # Tighter when strictness < 1
+        max_depth_ratio = 3.0 * strictness  # Tighter when strictness < 1
+        
+        # After failed attempts, require stricter depth matching
+        if strictness < 1.0:
+            # Stricter range: 0.43 to 2.1 when strictness is 0.7
+            min_depth_ratio = 0.3 / strictness
+            max_depth_ratio = 3.0 * strictness
+        
+        depth_similar = min_depth_ratio <= depth_ratio <= max_depth_ratio
+        
+        # 2D proximity conditions (existing logic)
+        proximity_2d = (
             distance < self.DISTANCE_THRESHOLD_PIXELS or
             iou > self.OCCLUSION_IOU_THRESHOLD or
             overlap_ratio > 0.4
         )
         
+        # Object is truly "reached" only if both 2D proximity AND depth are satisfied
+        reached = proximity_2d and depth_similar
+        
+        # Debug logging for depth check
+        if proximity_2d and not depth_similar:
+            print(f"⚠️  2D overlap detected but depth mismatch! Depth ratio: {depth_ratio:.2f} (need 0.3-3.0)")
+        
         return reached, distance, iou, overlap_ratio
     
     async def handle_feedback(self, confirmed: bool, feedback_text: Optional[str] = None) -> Dict[str, Any]:
-        """Handle user feedback"""
+        """Handle user feedback with adaptive behavior after failed attempts"""
         if confirmed:
+            # Success! Reset failed attempts counter
+            self.failed_attempts = 0
+            self.last_failed_reason = None
             self._update_instruction("Great, task complete!")
             self.guidance_stage = 'DONE'
             self.task_done_displayed = True
@@ -623,13 +810,58 @@ class ActivityGuideService:
                 "next_stage": "DONE"
             }
         else:
-            self._update_instruction("Okay, let's try again. I will scan for the object.")
-            self.guidance_stage = 'FINDING_OBJECT'
+            # Track failed attempts
+            self.failed_attempts += 1
             self.found_object_location = None
+            
+            primary_target = self.target_objects[0] if self.target_objects else "object"
+            
+            # Provide adaptive guidance based on number of failed attempts
+            if self.failed_attempts == 1:
+                # First failure - likely depth issue or slight misalignment
+                instruction = (
+                    f"Okay, let me try again. This might have been a depth issue - "
+                    f"make sure your hand is actually touching the {primary_target}, not just passing in front of or behind it. "
+                    f"I'll guide you more carefully this time."
+                )
+                self.last_failed_reason = "depth"
+                # Tighten depth requirements for next attempt
+                self.DEPTH_STRICTNESS_MULTIPLIER = 0.7  # More strict depth matching
+                
+            elif self.failed_attempts == 2:
+                # Second failure - might be misclassification
+                instruction = (
+                    f"Let me scan again more carefully. The detected object might not have been the correct {primary_target}. "
+                    f"Please make sure the {primary_target} is clearly visible in the camera."
+                )
+                self.last_failed_reason = "misclassification"
+                # Increase confidence threshold temporarily
+                self.CONFIDENCE_THRESHOLD = min(0.7, self.CONFIDENCE_THRESHOLD + 0.1)
+                
+            elif self.failed_attempts >= 3:
+                # Multiple failures - object might be gone or very difficult to detect
+                instruction = (
+                    f"Having trouble finding the {primary_target}. It may have been moved or is hard to detect. "
+                    f"Try repositioning the {primary_target} so it's clearly visible, or check if it's still there. "
+                    f"I'll scan the area again."
+                )
+                self.last_failed_reason = "unknown"
+                # Reset thresholds but keep tracking
+                self.CONFIDENCE_THRESHOLD = 0.5
+                if hasattr(self, 'DEPTH_STRICTNESS_MULTIPLIER'):
+                    del self.DEPTH_STRICTNESS_MULTIPLIER
+            
+            self._update_instruction(instruction)
+            self.guidance_stage = 'FINDING_OBJECT'
+            
+            print(f"📝 Feedback: NO (attempt #{self.failed_attempts}, suspected reason: {self.last_failed_reason})")
+            
             return {
                 "status": "success",
-                "message": "Restarting search",
-                "next_stage": "FINDING_OBJECT"
+                "message": f"Restarting search (attempt #{self.failed_attempts + 1})",
+                "next_stage": "FINDING_OBJECT",
+                "failed_attempts": self.failed_attempts,
+                "suspected_reason": self.last_failed_reason
             }
     
     def get_status(self) -> Dict[str, Any]:
@@ -652,4 +884,11 @@ class ActivityGuideService:
         self.task_done_displayed = False
         self.object_last_seen_time = None
         self.object_disappeared_notified = False
+        
+        # Reset feedback tracking and adaptive thresholds
+        self.failed_attempts = 0
+        self.last_failed_reason = None
+        self.CONFIDENCE_THRESHOLD = 0.5
+        if hasattr(self, 'DEPTH_STRICTNESS_MULTIPLIER'):
+            del self.DEPTH_STRICTNESS_MULTIPLIER
 

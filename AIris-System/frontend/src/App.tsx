@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Camera, CameraOff, Settings } from 'lucide-react';
+import { Camera, CameraOff, Settings, Laptop, Cpu } from 'lucide-react';
 import ActivityGuide from './components/ActivityGuide';
 import SceneDescription from './components/SceneDescription';
-import CameraSettings from './components/CameraSettings';
+import HardwareSettings from './components/HardwareSettings';
 import { apiClient } from './services/api';
 
 type Mode = 'Activity Guide' | 'Scene Description';
+type HardwareMode = 'local' | 'physical';
 
 function App() {
   const [mode, setMode] = useState<Mode>('Activity Guide');
@@ -13,6 +14,11 @@ function App() {
   const [cameraStatus, setCameraStatus] = useState({ is_running: false, is_available: false });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
+  const [hardwareMode, setHardwareMode] = useState<HardwareMode>(() => {
+    // Persist hardware mode preference in localStorage
+    const saved = localStorage.getItem('airis-hardware-mode');
+    return (saved === 'physical' ? 'physical' : 'local') as HardwareMode;
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -22,6 +28,26 @@ function App() {
   useEffect(() => {
     checkCameraStatus();
   }, []);
+
+  // Persist hardware mode preference
+  useEffect(() => {
+    localStorage.setItem('airis-hardware-mode', hardwareMode);
+  }, [hardwareMode]);
+
+  // Auto-configure webcam when in local mode on initial load
+  useEffect(() => {
+    if (hardwareMode === 'local') {
+      apiClient.setCameraConfig('webcam').catch(console.error);
+    }
+  }, []);
+
+  const handleHardwareModeChange = (newMode: HardwareMode) => {
+    setHardwareMode(newMode);
+    // If switching to local, auto-configure webcam
+    if (newMode === 'local') {
+      apiClient.setCameraConfig('webcam').catch(console.error);
+    }
+  };
 
   const checkCameraStatus = async () => {
     try {
@@ -79,11 +105,44 @@ function App() {
             </button>
           </div>
 
-          {/* Camera Settings */}
+          {/* Hardware Mode Toggle */}
+          <div className="flex items-center space-x-2 bg-dark-surface rounded-xl p-1 border border-dark-border">
+            <button
+              onClick={() => handleHardwareModeChange('local')}
+              title="Use laptop camera, mic, and speaker"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                hardwareMode === 'local'
+                  ? 'bg-brand-gold text-brand-charcoal'
+                  : 'text-dark-text-secondary hover:text-dark-text-primary'
+              }`}
+            >
+              <Laptop className="w-4 h-4" />
+              <span className="hidden sm:inline">Local</span>
+            </button>
+            <button
+              onClick={() => handleHardwareModeChange('physical')}
+              title="Use ESP32 camera and Bluetooth peripherals"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                hardwareMode === 'physical'
+                  ? 'bg-brand-gold text-brand-charcoal'
+                  : 'text-dark-text-secondary hover:text-dark-text-primary'
+              }`}
+            >
+              <Cpu className="w-4 h-4" />
+              <span className="hidden sm:inline">Physical</span>
+            </button>
+          </div>
+
+          {/* Hardware Settings - Only show when Physical mode is selected */}
           <button
             onClick={() => setShowSettings(true)}
-            title="Camera Settings"
-            className="p-2.5 rounded-xl border-2 border-dark-border bg-dark-surface text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold transition-all duration-300"
+            title="Hardware Settings"
+            className={`p-2.5 rounded-xl border-2 transition-all duration-300 ${
+              hardwareMode === 'physical'
+                ? 'border-dark-border bg-dark-surface text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold'
+                : 'border-dark-border bg-dark-bg text-dark-text-secondary/50 cursor-default'
+            }`}
+            disabled={hardwareMode === 'local'}
           >
             <Settings className="w-5 h-5" />
           </button>
@@ -128,9 +187,11 @@ function App() {
       </main>
 
       {/* Settings Modal */}
-      <CameraSettings
+      <HardwareSettings
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+        hardwareMode={hardwareMode}
+        onHardwareModeChange={handleHardwareModeChange}
       />
     </div>
   );
