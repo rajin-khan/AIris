@@ -33,9 +33,14 @@ class SceneDescriptionService:
         
         # Constants
         self.RECORDING_SPAN_MINUTES = 30
-        self.FRAME_ANALYSIS_INTERVAL_SEC = 10
-        self.SUMMARIZATION_BUFFER_SIZE = 3
+        self.FRAME_ANALYSIS_INTERVAL_SEC = 3  # Faster analysis (was 10s)
+        self.SUMMARIZATION_BUFFER_SIZE = 5    # More samples before summarizing (was 3)
         self.RECORDINGS_DIR = "recordings"
+        
+        # Session stats
+        self.descriptions_count = 0
+        self.summaries_count = 0
+        self.alerts_count = 0
         
         # Font path
         self.FONT_PATH = os.path.join(os.path.dirname(__file__), '..', 'RobotoCondensed-Regular.ttf')
@@ -46,60 +51,56 @@ class SceneDescriptionService:
         os.makedirs(self.RECORDINGS_DIR, exist_ok=True)
     
     def _init_groq(self):
-        """Initialize Groq client with GPT-OSS 120B model"""
+        """Initialize Groq client"""
+        print("\n🔧 [Scene Description] Initializing Groq client...")
         api_key = os.environ.get("GROQ_API_KEY")
         
+        print(f"   Checking for GROQ_API_KEY in environment...")
         if not api_key:
-            print("⚠️  GROQ_API_KEY environment variable not found!")
+            print("   ❌ GROQ_API_KEY environment variable not found!")
             print("   Please set GROQ_API_KEY in your .env file or environment variables")
             print("   Get your API key from: https://console.groq.com/keys")
             self.groq_client = None
             return
         
         if not api_key.strip():
-            print("⚠️  GROQ_API_KEY is empty!")
+            print("   ❌ GROQ_API_KEY is empty!")
             print("   Please set a valid GROQ_API_KEY in your .env file")
             self.groq_client = None
             return
         
+        print(f"   ✓ Found API key: {api_key[:8]}...{api_key[-4:]}")
+        
         try:
-            # Remove any proxy-related env vars that might interfere
-            old_proxies = os.environ.pop('HTTP_PROXY', None), os.environ.pop('HTTPS_PROXY', None)
+            print(f"   Creating Groq client...")
+            self.groq_client = Groq(api_key=api_key)
+            print(f"   ✓ Groq client object created")
+            
+            # Test the connection (optional - don't fail if this doesn't work)
+            print(f"   Testing API connection...")
             try:
-                # Initialize Groq client with API key
-                self.groq_client = Groq(api_key=api_key)
-                
-                # Test the connection by making a simple API call
-                try:
-                    test_response = self.groq_client.chat.completions.create(
-                        model="openai/gpt-oss-120b",
-                        messages=[
-                            {"role": "user", "content": "test"}
-                        ],
-                        max_tokens=5
-                    )
-                    print("✓ Groq client initialized successfully with GPT-OSS 120B (Scene Description)")
-                    print(f"  Model: openai/gpt-oss-120b")
-                except Exception as test_error:
-                    print(f"⚠️  Groq client created but test API call failed: {test_error}")
-                    print("   This might be a temporary issue. The client will still be used.")
-            finally:
-                # Restore proxies if they existed
-                if old_proxies[0]:
-                    os.environ['HTTP_PROXY'] = old_proxies[0]
-                if old_proxies[1]:
-                    os.environ['HTTPS_PROXY'] = old_proxies[1]
+                test_response = self.groq_client.chat.completions.create(
+                    model="openai/gpt-oss-120b",
+                    messages=[{"role": "user", "content": "test"}],
+                    max_tokens=5
+                )
+                print("   ✓ API test successful!")
+                print("✅ [Scene Description] Groq client ready (openai/gpt-oss-120b)")
+            except Exception as test_error:
+                print(f"   ⚠️ API test failed: {test_error}")
+                print("   Client will still be used - test failure doesn't mean client is broken")
+                print("✅ [Scene Description] Groq client ready (test skipped)")
         except Exception as e:
-            print(f"❌ Failed to initialize Groq client: {e}")
+            print(f"❌ [Scene Description] Failed to create Groq client: {e}")
             print(f"   Error type: {type(e).__name__}")
             import traceback
             traceback.print_exc()
             self.groq_client = None
     
-    def _get_groq_response(self, prompt: str, system_prompt: str = "You are a helpful assistant.", model: str = "openai/gpt-oss-120b") -> str:
-        """Get response from Groq API using GPT-OSS 120B model"""
+    def _get_groq_response(self, prompt: str, system_prompt: str = "You are a helpful assistant.", model: str = "openai/gpt-oss-120b") -> Optional[str]:
+        """Get response from Groq API. Returns None if unavailable."""
         if not self.groq_client:
-            return "LLM Client not initialized. Please set GROQ_API_KEY in your .env file. Get your key from https://console.groq.com/keys"
+            return None
         try:
             messages = [
                 {"role": "system", "content": system_prompt},
@@ -112,7 +113,7 @@ class SceneDescriptionService:
             return chat_completion.choices[0].message.content
         except Exception as e:
             print(f"Error calling Groq API: {e}")
-            return f"Error: {e}"
+            return None
     
     async def start_recording(self) -> Dict[str, Any]:
         """Start scene description recording"""
@@ -128,6 +129,11 @@ class SceneDescriptionService:
             "events": []
         }
         self.frame_description_buffer = []
+        
+        # Reset session stats
+        self.descriptions_count = 0
+        self.summaries_count = 0
+        self.alerts_count = 0
         
         return {
             "status": "success",
@@ -167,10 +173,12 @@ class SceneDescriptionService:
     async def process_frame(self, frame: np.ndarray) -> Dict[str, Any]:
         """Process a frame for scene description"""
         annotated_frame = frame.copy()
+        elapsed_seconds = 0
         
         # Check if recording session should end
         if self.is_recording:
-            elapsed_minutes = (time.time() - self.recording_start_time) / 60
+            elapsed_seconds = time.time() - self.recording_start_time
+            elapsed_minutes = elapsed_seconds / 60
             if elapsed_minutes >= self.RECORDING_SPAN_MINUTES:
                 await self.stop_recording()
                 return {
@@ -179,7 +187,8 @@ class SceneDescriptionService:
                     "summary": None,
                     "safety_alert": False,
                     "is_recording": False,
-                    "message": "Recording session ended automatically"
+                    "message": "Recording session ended automatically",
+                    "stats": self._get_session_stats(elapsed_seconds)
                 }
         
         # Analyze frame at intervals
@@ -200,25 +209,68 @@ class SceneDescriptionService:
                 description = vision_processor.decode(generated_ids[0], skip_special_tokens=True).strip()
                 
                 self.frame_description_buffer.append(description)
+                self.descriptions_count += 1
                 
                 # Summarize when buffer is full
                 if len(self.frame_description_buffer) >= self.SUMMARIZATION_BUFFER_SIZE:
                     descriptions = list(set(self.frame_description_buffer))
                     prompts = self.model_service.get_prompts()
                     
+                    # LLM summarization required - no fallback
+                    summary = None
+                    is_harmful = False
+                    
+                    if not self.groq_client:
+                        # LLM not available - skip summarization, keep collecting observations
+                        print(f"⚠️  LLM not available for summarization!")
+                        print(f"   self.groq_client = {self.groq_client}")
+                        print(f"   GROQ_API_KEY in env: {'Yes' if os.environ.get('GROQ_API_KEY') else 'No'}")
+                        print("   Please set GROQ_API_KEY in .env and restart the backend.")
+                        self.frame_description_buffer = []  # Clear buffer to try again
+                        return {
+                            "annotated_frame": annotated_frame,
+                            "description": description,
+                            "summary": None,
+                            "safety_alert": False,
+                            "is_recording": True,
+                            "stats": self._get_session_stats(elapsed_seconds),
+                            "recent_observations": descriptions[-5:],
+                            "error": "LLM not configured - summarization unavailable"
+                        }
+                    
                     system_prompt = prompts.get('scene_description', {}).get('summarization_system', '')
                     user_prompt = prompts.get('scene_description', {}).get('summarization_user', '').format(
                         observations=". ".join(descriptions)
                     )
-                    
                     summary = self._get_groq_response(user_prompt, system_prompt=system_prompt)
+                    
+                    # If LLM call failed, skip this summarization cycle
+                    if not summary:
+                        print("⚠️  LLM call failed - skipping summarization cycle")
+                        self.frame_description_buffer = []  # Clear buffer to try again
+                        return {
+                            "annotated_frame": annotated_frame,
+                            "description": description,
+                            "summary": None,
+                            "safety_alert": False,
+                            "is_recording": True,
+                            "stats": self._get_session_stats(elapsed_seconds),
+                            "recent_observations": descriptions[-5:],
+                            "error": "LLM call failed - will retry next cycle"
+                        }
+                    
+                    self.summaries_count += 1
                     
                     # Safety check
                     safety_prompt = prompts.get('scene_description', {}).get('safety_alert_user', '').format(
                         summary=summary
                     )
-                    safety_response = self._get_groq_response(safety_prompt).strip().upper()
-                    is_harmful = "HARMFUL" in safety_response
+                    safety_response = self._get_groq_response(safety_prompt)
+                    if safety_response:
+                        is_harmful = "HARMFUL" in safety_response.strip().upper()
+                    
+                    if is_harmful:
+                        self.alerts_count += 1
                     
                     # Log entry
                     log_entry = {
@@ -231,9 +283,10 @@ class SceneDescriptionService:
                     self.frame_description_buffer = []
                     
                     # Draw status on frame
-                    status_text = f"🔴 RECORDING... | Session ends in {self.RECORDING_SPAN_MINUTES - elapsed_minutes:.1f} mins"
+                    elapsed_minutes = elapsed_seconds / 60
+                    status_text = f"🔴 RECORDING | {int(elapsed_seconds)}s"
                     if is_harmful:
-                        status_text += " | ⚠️ SAFETY ALERT"
+                        status_text += " | ⚠️ ALERT"
                     
                     annotated_frame = self._draw_text_on_frame(annotated_frame, status_text)
                     
@@ -242,23 +295,53 @@ class SceneDescriptionService:
                         "description": description,
                         "summary": summary,
                         "safety_alert": is_harmful,
-                        "is_recording": True
+                        "is_recording": True,
+                        "stats": self._get_session_stats(elapsed_seconds),
+                        "recent_observations": list(self.frame_description_buffer[-5:]) if self.frame_description_buffer else descriptions[-5:]
+                    }
+                else:
+                    # Return just the description without summary
+                    elapsed_minutes = elapsed_seconds / 60
+                    status_text = f"🔴 RECORDING | {int(elapsed_seconds)}s | Observing..."
+                    annotated_frame = self._draw_text_on_frame(annotated_frame, status_text)
+                    
+                    return {
+                        "annotated_frame": annotated_frame,
+                        "description": description,
+                        "summary": None,
+                        "safety_alert": False,
+                        "is_recording": True,
+                        "stats": self._get_session_stats(elapsed_seconds),
+                        "recent_observations": list(self.frame_description_buffer[-5:])
                     }
         
         # Draw status on frame
         if self.is_recording:
-            elapsed_minutes = (time.time() - self.recording_start_time) / 60
-            status_text = f"🔴 RECORDING... | Session ends in {self.RECORDING_SPAN_MINUTES - elapsed_minutes:.1f} mins"
+            status_text = f"🔴 RECORDING | {int(elapsed_seconds)}s"
             annotated_frame = self._draw_text_on_frame(annotated_frame, status_text)
         else:
-            annotated_frame = self._draw_text_on_frame(annotated_frame, "Scene Description: Recording Paused")
+            annotated_frame = self._draw_text_on_frame(annotated_frame, "Scene Description: Ready")
         
         return {
             "annotated_frame": annotated_frame,
             "description": None,
             "summary": None,
             "safety_alert": False,
-            "is_recording": self.is_recording
+            "is_recording": self.is_recording,
+            "stats": self._get_session_stats(elapsed_seconds) if self.is_recording else None,
+            "recent_observations": list(self.frame_description_buffer[-5:]) if self.frame_description_buffer else []
+        }
+    
+    def _get_session_stats(self, elapsed_seconds: float) -> Dict[str, Any]:
+        """Get current session statistics"""
+        return {
+            "elapsed_seconds": int(elapsed_seconds),
+            "descriptions_count": self.descriptions_count,
+            "summaries_count": self.summaries_count,
+            "alerts_count": self.alerts_count,
+            "buffer_size": len(self.frame_description_buffer),
+            "buffer_max": self.SUMMARIZATION_BUFFER_SIZE,
+            "analysis_interval": self.FRAME_ANALYSIS_INTERVAL_SEC
         }
     
     def _draw_text_on_frame(self, frame: np.ndarray, text: str) -> np.ndarray:

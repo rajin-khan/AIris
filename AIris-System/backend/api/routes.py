@@ -38,9 +38,15 @@ _stt_service: STTService = None
 
 def set_global_services(camera: CameraService, model: ModelService):
     """Set global services from main.py"""
-    global _camera_service, _model_service
+    global _camera_service, _model_service, _scene_description_service, _activity_guide_service
     _camera_service = camera
     _model_service = model
+    
+    # Eagerly initialize services that need Groq so we see any errors at startup
+    print("\n📦 Initializing AI services...")
+    _scene_description_service = SceneDescriptionService(_model_service)
+    _activity_guide_service = ActivityGuideService(_model_service)
+    print("📦 AI services initialized.\n")
 
 def get_camera_service() -> CameraService:
     global _camera_service

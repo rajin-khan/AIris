@@ -63,7 +63,7 @@ class ActivityGuideService:
         self.VERIFICATION_PAIRS = [("watch", "clock")]
     
     def _init_groq(self):
-        """Initialize Groq client with GPT-OSS 120B model"""
+        """Initialize Groq client with Llama 3.3 70B model"""
         # Try multiple ways to get the API key
         api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("groq_api_key")
         
@@ -97,13 +97,13 @@ class ActivityGuideService:
             # Test the connection by making a simple API call
             try:
                 test_response = self.groq_client.chat.completions.create(
-                    model="openai/gpt-oss-120b",
+                    model="llama-3.3-70b-versatile",
                     messages=[
                         {"role": "user", "content": "test"}
                     ],
                     max_tokens=5
                 )
-                print("✓ Groq client initialized successfully with GPT-OSS 120B")
+                print("✓ Groq client initialized successfully (Activity Guide)")
                 print(f"  Model: openai/gpt-oss-120b")
                 print(f"  API Key: {api_key[:8]}...{api_key[-4:] if len(api_key) > 12 else '****'}")
             except Exception as test_error:
@@ -140,7 +140,7 @@ class ActivityGuideService:
             self.groq_client = None
     
     def _get_groq_response(self, prompt: str, system_prompt: str = "You are a helpful assistant.", model: str = "openai/gpt-oss-120b") -> Optional[str]:
-        """Get response from Groq API using GPT-OSS 120B model. Returns None if unavailable."""
+        """Get response from Groq API. Returns None if unavailable."""
         if not self.groq_client:
             return None  # Return None so callers can use fallback
         try:
@@ -531,34 +531,12 @@ class ActivityGuideService:
                                 target_box = detected_objects[target]
                                 break
                     
-                    # Generate directional guidance
-                    h, w = frame.shape[:2]
-                    distance_desc = self._get_distance_description(distance, w)
-                    
-                    # Calculate depth estimation from bounding box sizes
-                    depth_info = self._estimate_depth(closest_hand['box'], target_box, frame.shape)
-                    
-                    # Try LLM first, fallback to rule-based guidance
-                    llm_guidance = None
-                    if self.groq_client:
-                        prompts = self.model_service.get_prompts()
-                        system_prompt = prompts.get('activity_guide', {}).get('guidance_system', '')
-                        user_prompt = prompts.get('activity_guide', {}).get('guidance_user', '').format(
-                            hand_location=self._describe_location_detailed(closest_hand['box'], frame.shape),
-                            primary_target=primary_target,
-                            object_location=self._describe_location_detailed(target_box, frame.shape)
-                        )
-                        user_prompt += f"\n\nYour hand is {distance_desc} from the object."
-                        user_prompt += f"\n\nDepth estimation: {depth_info}"
-                        llm_guidance = self._get_groq_response(user_prompt, system_prompt)
-                    
-                    # Use rule-based fallback if LLM unavailable or failed
-                    if not llm_guidance:
-                        llm_guidance = self._generate_rule_based_guidance(
-                            closest_hand['box'], target_box, primary_target, distance, frame.shape
-                        )
-                    
-                    self._update_instruction(llm_guidance)
+                    # Generate directional guidance using fast rule-based approach
+                    # (LLM is too slow for real-time hand guidance)
+                    guidance = self._generate_rule_based_guidance(
+                        closest_hand['box'], target_box, primary_target, distance, frame.shape
+                    )
+                    self._update_instruction(guidance)
     
     def _update_instruction(self, new_instruction: str):
         """Update current instruction"""

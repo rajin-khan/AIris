@@ -56,6 +56,16 @@ export type SceneDescriptionResponse = {
   summary?: string;
   safety_alert: boolean;
   is_recording: boolean;
+  stats?: {
+    elapsed_seconds: number;
+    descriptions_count: number;
+    summaries_count: number;
+    alerts_count: number;
+    buffer_size: number;
+    buffer_max: number;
+    analysis_interval: number;
+  };
+  recent_observations?: string[];
 };
 
 export const apiClient = {
