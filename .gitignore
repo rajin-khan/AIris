@@ -1,38 +1,100 @@
-/Documentation/499APaper
-/Activity_Execution/yolov8n.pt
-/Activity_Execution/.env
-/Merged_System/yolov8n.pt
-/Merged_System/.env
-/RSPB/.env
-/RSPB/yolov8n.pt
-/Merged_System/yolov8s.pt
-/AIris-System/backend/environment.yml
-/AIris-System/backend/.env
-/AIris-System/backend/config.yaml
-/AIris-System/backend/yolov8s.pt
-/AIris-System/backend/.env.example
-/AIris-System/backend/README.md
-/AIris-System/backend/SETUP.md
-/AIris-System/backend/QUICKSTART.md
-/AIris-System/backend/MEDIAPIPE_M1_FIX.md
-/AIris-System/backend/LICENSE
-/AIris-System/backend/README.md
-/AIris-System/backend/SETUP.md
-/AIris-System/backend/QUICKSTART.md
+# ===========================
+# AIris Project .gitignore
+# ===========================
 
-Software/AIris-Final-App-Old/backend/environment.yml
-Software/AIris-Final-App-Old/backend/.env
-Software/AIris-Final-App-Old/backend/config.yaml
-Software/AIris-Final-App-Old/backend/yolov8s.pt
-Software/AIris-Final-App-Old/backend/.env.example
-Software/AIris-Final-App-Old/backend/README.md
-Software/AIris-Final-App-Old/backend/SETUP.md
-Software/AIris-Final-App-Old/backend/QUICKSTART.md
-Software/AIris-Final-App-Old/backend/MEDIAPIPE_M1_FIX.md
-Software/AIris-Final-App-Old/backend/LICENSE
-Software/AIris-Final-App-Old/backend/README.md
-Software/AIris-Final-App-Old/backend/SETUP.md
-Software/AIris-Final-App-Old/backend/QUICKSTART.md
+# -----------------
+# System Files
+# -----------------
+.DS_Store
+*.DS_Store
+Thumbs.db
+Desktop.ini
 
-*/.env
-*/.env.example
+# -----------------
+# Python
+# -----------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+
+# -----------------
+# Node.js
+# -----------------
+node_modules/
+dist/
+.npm
+*.tsbuildinfo
+
+# -----------------
+# Environment & Config
+# -----------------
+.env
+.env.*
+!.env.example
+config.yaml
+environment.yml
+
+# -----------------
+# IDE & Editors
+# -----------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# -----------------
+# ML Models (large files)
+# -----------------
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pkl
+
+# -----------------
+# Logs & Temp Files
+# -----------------
+*.log
+log.txt
+filetree.txt
+*.tmp
+*.temp
+
+# -----------------
+# Recordings (generated data)
+# -----------------
+**/recordings/*.json
+**/recordings/*.wav
+**/recordings/*.mp3
+
+# -----------------
+# Documentation Build
+# -----------------
+Documentation/499APaper/
+
+# -----------------
+# Backend Specific
+# -----------------
+AIris-System/backend/.env
+AIris-System/backend/config.yaml
+AIris-System/backend/environment.yml
+
+# -----------------
+# Archive folder (keep code, ignore generated)
+# -----------------
+Archive/**/.env
+Archive/**/*.pt
+Archive/**/recordings/
