@@ -1,0 +1,10 @@
+streamlit
+opencv-python
+ultralytics
+torch
+torchvision
+mediapipe
+Pillow
+lap
+groq
+python-dotenv
