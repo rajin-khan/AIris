@@ -1,0 +1,34 @@
+# Core dependencies
+streamlit>=1.28.0
+opencv-python>=4.8.0
+numpy>=1.24.0
+python-dotenv>=1.0.0
+
+# Computer Vision Models
+ultralytics>=8.0.0
+mediapipe>=0.10.0
+
+# Image Processing
+Pillow>=10.0.0
+
+# LLM API
+groq>=0.4.0
+
+# Text-to-Speech
+gTTS>=2.4.0
+
+# Speech Recognition
+SpeechRecognition>=3.10.0
+pyaudio>=0.2.11
+
+# Audio Playback
+pygame>=2.5.0
+
+# PyTorch for ARM (Raspberry Pi specific)
+# Install manually with: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# Or use the lightweight version below:
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Required for MediaPipe on Raspberry Pi
+protobuf>=3.20.0

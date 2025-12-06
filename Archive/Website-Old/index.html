@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIris: The Definitive Experience</title>
+
+    <!-- Google Fonts: Georgia for headings, Inter for body text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Georgia:wght@700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons from CDN -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <style>
+        :root {
+            --brand-gold: #C9AC78;
+            --rich-black: #101010;
+            --dark-surface: #161616;
+            --subtle-border: #2a2a2a;
+            --off-white: #EAEAEA;
+            --muted-gray: #A0A0A0;
+            --charcoal: #1D1D1D;
+            --accent-red: #ff6b6b;
+            --accent-green: #51cf66;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            cursor: none;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            min-height: 100%;
+        }
+
+        html, body {
+            background: radial-gradient(ellipse at center, #1a1a1a 0%, var(--rich-black) 70%);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--off-white);
+            overflow-x: hidden;
+        }
+
+        .cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 8px;
+            background-color: var(--brand-gold);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s, opacity 0.3s;
+            z-index: 9999;
+        }
+
+        .cursor-ring {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--brand-gold);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: width 0.4s, height 0.4s, opacity 0.4s, border-width 0.4s, transform 0.2s;
+            z-index: 9999;
+            opacity: 0.5;
+        }
+        
+        .interactive-element:hover ~ .cursor { opacity: 0; }
+        .interactive-element:hover ~ .cursor-ring { width: 60px; height: 60px; opacity: 1; border-width: 2px; }
+
+        main {
+            position: relative;
+            z-index: 1;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--rich-black); }
+        ::-webkit-scrollbar-thumb { background: var(--brand-gold); border-radius: 4px; border: 2px solid var(--rich-black); }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 120px 5vw;
+            max-width: 1200px;
+            margin: auto;
+            position: relative;
+        }
+
+        .chapter-heading {
+            position: sticky;
+            top: 40px;
+            z-index: 10;
+            font-family: 'Georgia', serif;
+            font-size: 1rem;
+            color: var(--muted-gray);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
+            margin-bottom: 80px;
+            backdrop-filter: blur(5px);
+            padding: 10px 20px;
+            border-radius: 10px;
+            background: rgba(16, 16, 16, 0.5);
+            border: 1px solid var(--subtle-border);
+            align-self: center;
+        }
+
+        .chapter-heading span { font-weight: 700; color: var(--brand-gold); }
+
+        .fade-in-up {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: opacity 1s cubic-bezier(0.19, 1, 0.22, 1), transform 1s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+
+        .is-visible .fade-in-up {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        h1, h2, h3 { font-family: 'Georgia', serif; font-weight: 700; }
+        h1 { font-size: clamp(4rem, 10vw, 8rem); line-height: 1.1; text-align: center; color: var(--brand-gold); text-shadow: 0 0 20px rgba(201, 172, 120, 0.3); }
+        h2 { font-size: clamp(2.5rem, 5vw, 3.5rem); margin-bottom: 40px; border-bottom: 2px solid var(--brand-gold); padding-bottom: 20px; color: var(--brand-gold); text-shadow: 0 0 20px rgba(201, 172, 120, 0.3); }
+        h3 { font-size: 1.5rem; color: var(--off-white); }
+        
+        .sub-heading {
+            color: var(--brand-gold);
+            margin-top: 50px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--subtle-border);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .word-reveal span {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        .is-visible .word-reveal span { opacity: 1; transform: translateY(0); }
+        
+        p { font-size: 1.2rem; line-height: 1.8; margin-bottom: 15px; max-width: 70ch; color: var(--muted-gray); }
+        p strong { color: var(--off-white); font-weight: 600; }
+        .subtitle { font-size: 1.8rem; color: var(--muted-gray); text-align: center; margin-top: 20px; font-style: italic; }
+
+        .stagger-container.is-visible .stagger-item { opacity: 1; transform: translateY(0); }
+        .stagger-item { opacity: 0; transform: translateY(30px); transition: opacity 0.7s ease 0.2s, transform 0.7s ease 0.2s; }
+        
+        .grid-container { display: grid; gap: 30px; margin-top: 40px; }
+        .grid-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+        .card {
+            background: var(--dark-surface);
+            border-radius: 18px;
+            padding: 35px;
+            border: 1px solid var(--subtle-border);
+            transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            border-color: var(--brand-gold);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .card .icon { color: var(--brand-gold); margin-bottom: 15px; }
+        .problem-card { border-left: 4px solid var(--accent-red); }
+        .solution-card { border-left: 4px solid var(--accent-green); }
+
+        ul { list-style: none; padding-left: 0; margin-top: 15px; }
+        li { position: relative; margin-bottom: 12px; padding-left: 30px; font-size: 1rem; color: var(--muted-gray); }
+        li strong { color: var(--off-white); font-weight: 600; }
+        li::before { font-family: 'lucide'; content: '\ea54'; color: var(--brand-gold); font-weight: bold; position: absolute; left: 0; }
+
+        #hero h1 { font-size: clamp(6rem, 15vw, 10rem); letter-spacing: 0.04em; }
+        #hero .logo-char { display: inline-block; opacity: 0; transform: translateY(40px) rotate(8deg); animation: char-fade-in 0.8s cubic-bezier(0.19, 1, 0.22, 1) forwards; }
+        @keyframes char-fade-in { to { opacity: 1; transform: translateY(0) rotate(0); } }
+        
+        .hardware-schematic { display: flex; flex-direction: column; gap: 40px; margin-top: 40px; position: relative; padding: 20px 0; }
+        .unit-card { background: rgba(22, 22, 22, 0.5); border: 1px solid var(--subtle-border); border-radius: 16px; padding: 30px; text-align: center; backdrop-filter: blur(5px); width: 100%; max-width: 400px; margin: 0 auto; }
+        .unit-card h4 { font-family: 'Georgia', serif; color: var(--brand-gold); margin-bottom: 25px; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; }
+        .component-list { display: flex; flex-direction: column; gap: 20px; }
+        .component-item { display: flex; align-items: center; gap: 15px; background: var(--rich-black); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--subtle-border); text-align: left; }
+        .component-item .icon { color: var(--brand-gold); flex-shrink: 0; }
+        .connection-path { display: none; }
+        
+        @media (min-width: 900px) {
+            .hardware-schematic { flex-direction: row; justify-content: space-between; align-items: center; }
+            .unit-card { flex-basis: 45%; max-width: none; }
+            .connection-path { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
+            .connection-path path { fill: none; stroke: var(--brand-gold); stroke-width: 4; stroke-linecap: round; opacity: 0; transform: translateX(-20px); transition: opacity 1s ease, transform 1s ease; }
+            .is-visible .connection-path path { opacity: 0.4; transform: translateX(0); }
+            .is-visible .connection-path path:nth-child(2) { transition-delay: 0.2s; }
+            .is-visible .connection-path path:nth-child(3) { transition-delay: 0.4s; }
+        }
+
+        .concept-gallery { display: grid; grid-template-columns: 1fr; gap: 40px; margin-top: 60px; }
+        @media (min-width: 768px) { .concept-gallery { grid-template-columns: repeat(2, 1fr); align-items: flex-start; } }
+        
+        .concept-image { background: rgba(16, 16, 16, 0.2); border: 1px solid var(--subtle-border); border-radius: 16px; padding: 20px; text-align: center; transition: transform 0.4s ease, box-shadow 0.4s ease; }
+        .concept-image:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5); }
+        .concept-image img { max-width: 100%; height: auto; margin-bottom: 15px; filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3)); }
+        .concept-image figcaption { font-size: 1rem; color: var(--muted-gray); font-style: italic; }
+        
+        .styled-table { width: 100%; border-collapse: collapse; margin-top: 40px; background: var(--dark-surface); border-radius: 12px; overflow: hidden; }
+        .styled-table th, .styled-table td { padding: 15px; text-align: left; border-bottom: 1px solid var(--subtle-border); }
+        .styled-table th { background: var(--brand-gold); color: var(--charcoal); font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .styled-table tr:last-child td { border-bottom: none; }
+        .styled-table tr { opacity: 0; transform: translateY(20px); transition: opacity 0.5s ease, transform 0.5s ease; }
+        .is-visible .styled-table tr { opacity: 1; transform: translateY(0); }
+
+        .timeline-container { position: relative; margin-top: 50px; }
+        .timeline-line { position: absolute; left: 12px; top: 0; width: 4px; height: 100%; background: var(--subtle-border); transform: scaleY(0); transform-origin: top; transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1); }
+        .is-visible .timeline-line { transform: scaleY(1); }
+        .timeline-item { position: relative; padding-left: 40px; margin-bottom: 50px; }
+        .timeline-item::before { content: ''; position: absolute; left: 0; top: 5px; width: 24px; height: 24px; background: var(--brand-gold); border-radius: 50%; box-shadow: 0 0 15px var(--brand-gold); animation: pulse-glow 2s infinite ease-in-out; }
+        .phase-title { font-family: 'Georgia', serif; font-size: 1.5rem; color: var(--brand-gold); margin-bottom: 10px; }
+        @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 15px var(--brand-gold); } 50% { box-shadow: 0 0 25px var(--brand-gold); } }
+        
+        .reference-list { list-style-type: decimal; padding-left: 20px; margin-top: 40px; }
+        .reference-list li { padding-left: 15px; margin-bottom: 15px; line-height: 1.6; }
+        .reference-list li::before { content: ''; } /* Remove default lucide icon */
+        .reference-list a { color: var(--off-white); text-decoration: none; border-bottom: 1px dashed var(--brand-gold); transition: color 0.3s, border-color 0.3s; }
+        .reference-list a:hover { color: var(--brand-gold); border-bottom-color: var(--off-white); }
+        .ref-label { color: var(--brand-gold); font-weight: 600; }
+
+        .navigation { position: fixed; bottom: 40px; right: 40px; z-index: 1000; }
+        
+        .nav-btn { position: relative; width: 72px; height: 72px; background: transparent; border: none; transition: transform 0.4s ease, opacity 0.4s; display: flex; align-items: center; justify-content: center; }
+        .nav-btn:hover { transform: scale(1.1); }
+        .nav-btn svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+        .nav-btn .progress-ring-bg { stroke: var(--subtle-border); }
+        .nav-btn .progress-ring-fg { stroke: var(--brand-gold); transition: stroke-dashoffset 0.3s; }
+        .nav-btn.is-hidden { opacity: 0; transform: scale(0.8); pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <div class="cursor-ring"></div>
+
+    <main>
+        <section id="hero" class="section">
+            <h1 id="logo-text"></h1>
+            <p class="subtitle fade-in-up" style="transition-delay: 1s;">(pronounced: ai·ris | aɪ.rɪs)</p>
+            <p class="subtitle fade-in-up" style="font-size: 2.5rem; margin-top: 40px; transition-delay: 1.2s;">"AI That Opens Eyes"</p>
+        </section>
+
+        <section id="intro" class="section">
+            <div class="chapter-heading"><span>Chapter I</span>   The Vision</div>
+            <div class="fade-in-up">
+                <h2 class="word-reveal">A New Dimension of Awareness</h2>
+                <p>AIris is not merely a tool; it is a paradigm shift in assistive technology for the visually impaired. Our mission is to deliver <strong>instantaneous, contextual awareness</strong> of the visual world, empowering users with an unprecedented level of freedom and independence. Where other tools offer a glimpse, AIris delivers sight.</p>
+            </div>
+            <div class="card interactive-element fade-in-up">
+                <h3>Development Team</h3>
+                <p><strong>Rajin Khan (2212708042)</strong> & <strong>Saumik Saha Kabbya (2211204042)</strong><br>North South University | CSE 499A/B Senior Capstone Project</p>
+            </div>
+        </section>
+
+        <section id="problem" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter II</span>   The Challenge</div>
+            <h2 class="word-reveal">Bridging the Visual Gap</h2>
+            <p class="stagger-item">Current assistive technologies are a compromise—slow, costly, and tethered to the cloud. They offer fragmented data, not holistic understanding. We identified four critical failures to overcome.</p>
+            <div class="grid-container grid-2">
+                <div class="card problem-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="timer"></i></div><h3>High Latency</h3><p>5+ second delays and complex interactions break immersion and utility.</p>
+                </div>
+                <div class="card problem-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="dollar-sign"></i></div><h3>Cost Barriers</h3><p>Proprietary hardware and expensive cloud APIs limit accessibility.</p>
+                </div>
+                <div class="card problem-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="cloud-off"></i></div><h3>Cloud Dependency</h3><p>No internet means no functionality, creating a fragile reliance on connectivity.</p>
+                </div>
+                <div class="card problem-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="target"></i></div><h3>Context Gap</h3><p>Static image analysis fails to understand user intent or the dynamics of an environment.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="solution" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter III</span>   The Solution</div>
+            <h2 class="word-reveal">The AIris Solution</h2>
+            <p class="stagger-item">An elegant, purpose-built wearable that delivers <strong>sub-2-second, offline-first, context-aware descriptions</strong>. It is a quiet companion, a real-time narrator, and a bridge to visual freedom.</p>
+             <div class="grid-container grid-2">
+                <div class="card solution-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="zap"></i></div><h3>Instant Analysis</h3><p>Sub-2-second response from a single button press to audio description. No apps, no menus, just instant awareness.</p>
+                </div>
+                <div class="card solution-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="brain-circuit"></i></div><h3>Edge AI Processing</h3><p>Local-first approach on a Raspberry Pi 5 ensures privacy, low latency, and functionality without an internet connection.</p>
+                </div>
+                <div class="card solution-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="shield-check"></i></div><h3>Safety Prioritized</h3><p>The AI engine is trained to identify and announce potential hazards—like obstacles, traffic, and steps—first.</p>
+                </div>
+                 <div class="card solution-card stagger-item interactive-element">
+                    <div class="icon"><i data-lucide="accessibility"></i></div><h3>Human-First Design</h3><p>A lightweight, comfortable, and discreet form factor designed for all-day wear, with private audio delivery.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="literature-review" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter IV</span>   Literature Review</div>
+            <h2 class="word-reveal">Grounding Our Vision in Research</h2>
+            <p class="stagger-item">The AIris project is built upon a solid foundation of academic and applied research. Our review of existing literature validates our architectural choices and highlights our key contributions to the field of assistive technology.</p>
+            
+            <h3 class="sub-heading stagger-item">Key Research Gaps Addressed</h3>
+            <table class="styled-table stagger-item">
+                <thead>
+                    <tr><th>Research Gap Identified</th><th>How AIris Addresses the Gap</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><strong>High Latency & Cloud Dependency</strong></td><td>An offline-first architecture on a Raspberry Pi 5 ensures sub-2-second response times, eliminating reliance on internet connectivity.</td></tr>
+                    <tr><td><strong>Lack of Contextual Understanding</strong></td><td>Integration of modern Vision-Language Models (LLaVA, BLIP-2) provides rich, human-like descriptions, moving beyond simple object lists.</td></tr>
+                    <tr><td><strong>High Cost & Poor Accessibility</strong></td><td>A targeted hardware budget under $160 USD and an open-source philosophy make the technology vastly more accessible than commercial alternatives.</td></tr>
+                    <tr><td><strong>On-Device Performance Limitations</strong></td><td>Targeted hardware/software co-design, including model quantization and memory management, is a core development phase, not an afterthought.</td></tr>
+                </tbody>
+            </table>
+            
+            <h3 class="sub-heading stagger-item">References</h3>
+            <ol class="reference-list stagger-item">
+                <li><a href="https://arxiv.org/pdf/2503.15494.pdf" target="_blank" rel="noopener noreferrer">Naayini, P., et al. (2025). <em>AI-Powered Assistive Technologies for Visual Impairment.</em></a></li>
+                <li><span class="ref-label">(Foundational Work)</span> <a href="https://arxiv.org/pdf/1905.07836.pdf" target="_blank" rel="noopener noreferrer">Wang, L., & Wong, A. (2019). <em>Enabling Computer Vision Driven Assistive Devices...</em></a></li>
+                <li><span class="ref-label">(Foundational Work)</span> <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5375851/pdf/sensors-17-00565.pdf" target="_blank" rel="noopener noreferrer">Elmannai, W., & Elleithy, K. (2017). <em>Sensor-Based Assistive Devices for Visually-Impaired People...</em></a></li>
+                <li><a href="https://arxiv.org/pdf/2304.08485.pdf" target="_blank" rel="noopener noreferrer">Liu, H., et al. (2023). <em>Visual Instruction Tuning (LLaVA).</em></a></li>
+                <li><a href="https://arxiv.org/pdf/2301.12597.pdf" target="_blank" rel="noopener noreferrer">Li, J., et al. (2023). <em>BLIP-2: Bootstrapping Language-Image Pre-training...</em></a></li>
+            </ol>
+        </section>
+
+        <section id="architecture" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter V</span>   System Architecture</div>
+            <h2 class="word-reveal">Anatomy of Instant Vision</h2>
+            <p class="stagger-item">Our modular architecture separates the system into a wearable Spectacle Unit and a powerful Pocket Unit. This core design is flexible, allowing for multiple physical form factors.</p>
+            
+            <div class="hardware-schematic stagger-item">
+                <svg class="connection-path" viewBox="0 0 100 100" preserveAspectRatio="none">
+                    <path d="M 45,30 C 50,30 50,30 55,30 " />
+                    <path d="M 45,50 C 50,50 50,50 55,50 " />
+                    <path d="M 45,70 C 50,70 50,70 55,70 " />
+                </svg>
+                <div class="unit-card interactive-element">
+                    <h4>Spectacle Unit</h4>
+                    <div class="component-list">
+                        <div class="component-item"><i class="icon" data-lucide="camera"></i> <span>USB Camera</span></div>
+                        <div class="component-item"><i class="icon" data-lucide="volume-1"></i> <span>Mini Speaker</span></div>
+                    </div>
+                </div>
+                <div class="unit-card interactive-element">
+                    <h4>Pocket Unit</h4>
+                    <div class="component-list">
+                        <div class="component-item"><i class="icon" data-lucide="cpu"></i> <span>Raspberry Pi 5</span></div>
+                        <div class="component-item"><i class="icon" data-lucide="battery-charging"></i> <span>Power Bank</span></div>
+                        <div class="component-item"><i class="icon" data-lucide="mouse-pointer-click"></i> <span>Tactile Button</span></div>
+                        <div class="component-item"><i class="icon" data-lucide="printer"></i> <span>3D-Printed Case</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="stagger-item" style="margin-top: 80px; text-align: center;">Conceptual Form Factors</h3>
+            <div class="concept-gallery stagger-item">
+                <figure class="concept-image interactive-element">
+                    <img src="assets/images/full-system.png" alt="The complete AIris wearable system showing glasses connected by a wire to the pocket unit.">
+                    <figcaption>Concept A: AIris Wearable</figcaption>
+                </figure>
+                <figure class="concept-image interactive-element">
+                    <img src="assets/images/pocket-unit.png" alt="Close-up of the AIris Pocket Unit with camera, USB-C port, and logo.">
+                    <figcaption>Concept B: AIris Mini</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <section id="tech-deep-dive" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter VI</span>   Technology Deep Dive</div>
+            <h2 class="word-reveal">Our Technology Stack</h2>
+            <p class="stagger-item">We are leveraging a state-of-the-art technology stack, chosen for performance on edge devices. This is not just a concept; it is an engineered system.</p>
+             <div class="grid-container grid-2">
+                <div class="card stagger-item interactive-element">
+                    <h3><i class="icon" data-lucide="bot"></i> AI Model Evaluation</h3>
+                    <p>Benchmarking multiple vision-language models to find the optimal balance of speed, accuracy, and resource usage for local deployment.</p>
+                    <ul><li><strong>LLaVA-v1.5:</strong> Primary for balanced local performance.</li><li><strong>BLIP-2:</strong> Used as an accuracy benchmark.</li><li><strong>Groq API:</strong> For high-speed cloud fallback.</li><li><strong>Ollama:</strong> For flexible local LLM hosting.</li></ul>
+                </div>
+                 <div class="card stagger-item interactive-element">
+                    <h3><i class="icon" data-lucide="layers"></i> Software Stack</h3>
+                    <p>Built on a robust Python foundation, utilizing industry-standard libraries for computer vision, AI, and hardware interfacing.</p>
+                    <ul><li><strong>Python 3.11+</strong> (Core Language)</li><li><strong>PyTorch 2.0+</strong> (AI Framework)</li><li><strong>OpenCV</strong> (Computer Vision)</li><li><strong>RPi.GPIO & picamera2</strong> (Hardware Control)</li></ul>
+                </div>
+            </div>
+        </section>
+        
+        <section id="current-status" class="section stagger-container">
+             <div class="chapter-heading"><span>Chapter VII</span>   Prototyping & Evaluation</div>
+             <h2 class="word-reveal">Current Development Status</h2>
+             <p class="stagger-item">We are in the active prototyping and testing phase, using a web interface to rapidly evaluate and optimize different multimodal AI models before hardware integration.</p>
+             
+             <div class="concept-gallery stagger-item">
+                <figure class="concept-image interactive-element">
+                    <img src="assets/images/pica.jpeg" alt="Web interface showing an image upload and the AI-generated description.">
+                    <figcaption>Web Interface Testing Platform</figcaption>
+                </figure>
+                <figure class="concept-image interactive-element">
+                    <img src="assets/images/ssb.png" alt="Code snippet or system diagram related to the project.">
+                    <figcaption>Real-time Metrics & System Logic</figcaption>
+                </figure>
+            </div>
+        </section>
+ 
+        <section id="budget" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter VIII</span>   The Blueprint</div>
+            <h2 class="word-reveal">Budget & Portability</h2>
+            <p class="stagger-item">Accessibility includes affordability. We've sourced components to keep the cost under our target for the Bangladesh market, without sacrificing the core mission of complete portability.</p>
+            <table class="styled-table budget-table">
+                <thead><tr><th>Component Category</th><th>Cost Range (BDT)</th><th>Weight Est.</th></tr></thead>
+                <tbody>
+                    <tr class="stagger-item"><td><strong>Core Computing</strong> (Pi 5, SD Card)</td><td>৳10,600 - ৳12,600</td><td>~200g</td></tr>
+                    <tr class="stagger-item"><td><strong>Portable Power</strong> (Power Bank, Cables)</td><td>৳2,350 - ৳3,600</td><td>~400g</td></tr>
+                    <tr class="stagger-item"><td><strong>Camera & Audio System</strong></td><td>৳1,980 - ৳3,470</td><td>~150g</td></tr>
+                    <tr class="stagger-item"><td><strong>Control & Housing</strong></td><td>৳955 - ৳1,910</td><td>~180g</td></tr>
+                    <tr class="stagger-item" style="background: var(--brand-gold); color: var(--charcoal); font-weight: 600;"><td><strong>TOTAL ESTIMATE (Target < ৳17,000)</strong></td><td><strong>৳15,885 - ৳21,580</strong></td><td><strong>~930g</strong></td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="timeline" class="section stagger-container">
+            <div class="chapter-heading"><span>Chapter IX</span>   The Roadmap</div>
+            <h2 class="word-reveal">Two Phases of Innovation</h2>
+            <div class="timeline-container">
+                <div class="timeline-line"></div>
+                <div class="timeline-item stagger-item">
+                    <div class="phase-title"><i data-lucide="book-open-check"></i> Phase 1: CSE 499A (Current)</div>
+                    <p><strong>Focus: Software Foundation & AI Integration.</strong> This phase involves deep research into lightweight vision-language models, benchmarking their performance on the Raspberry Pi 5, building the core scene description engine, and optimizing the entire software pipeline for latency and efficiency.</p>
+                </div>
+                <div class="timeline-item stagger-item">
+                    <div class="phase-title"><i data-lucide="wrench"></i> Phase 2: CSE 499B (Upcoming)</div>
+                    <p><strong>Focus: Hardware Integration & User Experience.</strong> This phase brings the project into the physical world. We will 3D model and print the custom enclosures, assemble the complete wearable system, and conduct extensive field testing with users to gather feedback and refine the final product.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="alignment" class="section stagger-container">
+             <div class="chapter-heading"><span>Chapter X</span>   Academic Alignment</div>
+             <h2 class="word-reveal">Exceeding Course Outcomes</h2>
+             <p class="fade-in-up">This project is meticulously designed to meet and exceed the learning outcomes for the CSE 499A/B Senior Capstone course.</p>
+             <div class="grid-container grid-2">
+                <div class="card stagger-item interactive-element"><p><strong>Problem & Design:</strong> We identify a real-world engineering problem and design a complete, constrained hardware/software system to meet desired needs.</p></div>
+                <div class="card stagger-item interactive-element"><p><strong>Modern Tools:</strong> We leverage a modern stack including Python, PyTorch, modern AI models, and embedded systems.</p></div>
+                <div class="card stagger-item interactive-element"><p><strong>Constraint Validation:</strong> Our budget addresses economic factors; offline-first design addresses privacy, and the core function is safety-focused.</p></div>
+                <div class="card stagger-item interactive-element"><p><strong>Defense & Documentation:</strong> This experience, along with our detailed documentation, fulfills all reporting and defense requirements.</p></div>
+             </div>
+        </section>
+
+        <section id="conclusion" class="section stagger-container">
+            <h1 class="fade-in-up" style="font-size: clamp(4rem, 10vw, 8rem);">AIris</h1>
+            <p class="subtitle fade-in-up">Thank you.</p>
+             <div class="card fade-in-up interactive-element" style="text-align:center; margin-top: 40px;">
+                <h3>Questions & Answers</h3>
+            </div>
+        </section>
+    </main>
+
+    <div class="navigation">
+        <button id="navBtn" class="nav-btn interactive-element">
+             <svg width="72" height="72" viewBox="0 0 72 72">
+                <circle class="progress-ring-bg" cx="36" cy="36" r="34" fill="var(--rich-black)" fill-opacity="0.5"/>
+                <circle class="progress-ring-fg" cx="36" cy="36" r="34" fill="transparent" stroke-width="4"/>
+            </svg>
+        </button>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- Core Variables ---
+        const sections = Array.from(document.querySelectorAll('.section'));
+        const cursor = document.querySelector('.cursor');
+        const cursorRing = document.querySelector('.cursor-ring');
+        const navBtn = document.getElementById('navBtn');
+        const progressRing = document.querySelector('.progress-ring-fg');
+        const radius = progressRing.r.baseVal.value;
+        const circumference = radius * 2 * Math.PI;
+        progressRing.style.strokeDasharray = `${circumference} ${circumference}`;
+        progressRing.style.strokeDashoffset = circumference;
+        let isScrolling = false;
+        let lastCursorX = 0;
+        let lastCursorY = 0;
+
+        // --- 1. Custom Cursor (Optimized) ---
+        function updateCursor(e) {
+            lastCursorX = e.clientX;
+            lastCursorY = e.clientY;
+            cursor.style.transform = `translate(${lastCursorX}px, ${lastCursorY}px)`;
+            cursorRing.style.transform = `translate(${lastCursorX - 16}px, ${lastCursorY - 16}px)`;
+        }
+        window.addEventListener('mousemove', e => {
+            requestAnimationFrame(() => updateCursor(e));
+        }, { passive: true });
+        
+        const interactiveElements = document.querySelectorAll('.interactive-element, a, button');
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => cursorRing.classList.add('hovered'));
+            el.addEventListener('mouseleave', () => cursorRing.classList.remove('hovered'));
+        });
+
+        // --- 2. Text & Logo Animations ---
+        function setupCharAnimation(elementId) {
+            const logoText = "AIris";
+            const logoElement = document.getElementById(elementId);
+            if (!logoElement) return;
+            logoElement.innerHTML = '';
+            logoText.split('').forEach((char, index) => {
+                const span = document.createElement('span');
+                span.className = 'logo-char interactive-element';
+                span.textContent = char;
+                span.style.animationDelay = `${index * 0.1 + 0.2}s`;
+                logoElement.appendChild(span);
+            });
+        }
+        setupCharAnimation('logo-text');
+
+        document.querySelectorAll('.word-reveal').forEach(el => {
+            const words = el.textContent.trim().split(' ');
+            el.innerHTML = words.map((word, i) => {
+                const delay = i * 0.05 + 0.3;
+                return `<span style="transition-delay: ${delay}s">${word}</span>`;
+            }).join(' ');
+        });
+
+        // --- 3. Intersection Observer for Animations ---
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                }
+            });
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+        
+        document.querySelectorAll('.section, .stagger-item, .fade-in-up, .timeline-item, .styled-table tr, .hardware-schematic, .concept-gallery').forEach(el => observer.observe(el));
+
+        // --- 4. Navigation & Progress Ring ---
+        function updateProgress() {
+            const scrollY = window.scrollY;
+            const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollPercent = docHeight > 0 ? scrollY / docHeight : 0;
+            const offset = circumference - scrollPercent * circumference;
+            progressRing.style.strokeDashoffset = offset;
+            navBtn.classList.toggle('is-hidden', scrollPercent > 0.98);
+        }
+        window.addEventListener('scroll', () => requestAnimationFrame(updateProgress), { passive: true });
+
+        navBtn.addEventListener('click', () => {
+            if (isScrolling) return;
+            const currentScrollY = window.scrollY;
+            const nextSection = sections.find(section => section.offsetTop > currentScrollY + window.innerHeight / 2);
+
+            if (nextSection) {
+                isScrolling = true;
+                nextSection.scrollIntoView({ behavior: 'smooth' });
+                setTimeout(() => { isScrolling = false; }, 1000);
+            } else {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }
+        });
+
+        // --- Final Initialization ---
+        lucide.createIcons();
+        updateProgress();
+    });
+    </script>
+</body>
+</html>
