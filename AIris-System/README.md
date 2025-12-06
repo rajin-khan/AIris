@@ -1,172 +1,147 @@
-# AIris Final App
+# AIris System
 
-A modern full-stack application for AIris Unified Assistance Platform, featuring a FastAPI backend and React frontend with Tailwind CSS v4.
+The main application for AIris — an AI-powered vision assistant for the visually impaired.
 
-## Project Structure
+## Overview
+
+This folder contains the **current, working version** of the AIris software. It includes:
+
+- **FastAPI Backend** — AI services, WebSocket streaming, REST API
+- **React Frontend** — Development/testing interface (proof of concept)
+
+### Features
+
+| Mode | Status | Description |
+|:-----|:------:|:------------|
+| **Active Guidance** | ✅ Working | Guides user to find and reach objects via audio instructions |
+| **Scene Description** | 🔄 Testing | Continuous environment analysis with safety alerts |
+
+## Architecture
 
 ```
-AIris-Final-App/
-├── backend/          # FastAPI backend
-│   ├── api/          # API routes
-│   ├── services/     # Business logic services
-│   ├── models/       # Pydantic schemas
-│   └── main.py       # FastAPI application entry point
-└── frontend/         # React + Vite frontend
+AIris-System/
+├── backend/
+│   ├── api/                  # FastAPI routes
+│   │   └── routes.py         # REST and WebSocket endpoints
+│   ├── services/             # Core AI services
+│   │   ├── activity_guide_service.py   # Object guidance logic
+│   │   ├── scene_description_service.py # Scene analysis
+│   │   ├── camera_service.py           # Camera handling
+│   │   ├── model_service.py            # YOLO, MediaPipe, BLIP
+│   │   ├── tts_service.py              # Text-to-speech
+│   │   └── stt_service.py              # Speech-to-text (Whisper)
+│   ├── models/               # Pydantic schemas
+│   ├── utils/                # Helper utilities
+│   ├── main.py               # FastAPI entry point
+│   └── requirements.txt      # Python dependencies
+│
+└── frontend/
     ├── src/
-    │   ├── components/   # React components
-    │   └── services/     # API client
+    │   ├── components/       # React components
+    │   ├── services/         # API client
+    │   └── App.tsx           # Main application
+    ├── package.json
     └── vite.config.ts
 ```
 
-## Features
-
-### Activity Guide Mode
-- Real-time object detection using YOLO
-- Hand tracking using MediaPipe
-- LLM-powered guidance instructions
-- Text-to-speech audio feedback
-- Interactive feedback system
-
-### Scene Description Mode
-- Continuous scene analysis using BLIP vision model
-- Automatic summarization of observations
-- Safety alert detection
-- Recording and logging system
-
 ## Prerequisites
 
-- Python 3.9+
-- Node.js 18+
-- Camera access
-- GROQ_API_KEY environment variable
+- **Python 3.10+**
+- **Node.js 18+**
+- **Groq API Key** — Get free at [console.groq.com](https://console.groq.com)
+- **Camera** — Laptop webcam for testing (ESP32-CAM for production)
 
-## Backend Setup
+## Quick Setup
 
-### Using Conda (Recommended)
+See [QUICKSTART.md](./QUICKSTART.md) for step-by-step instructions.
 
-1. Navigate to the backend directory:
+### Backend
+
 ```bash
 cd backend
-```
 
-2. Create a conda environment from the environment file:
-```bash
-conda env create -f environment.yml
-```
+# Create environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-3. Activate the conda environment:
-```bash
-conda activate airis-backend
-```
+# Install dependencies
+pip install -r requirements.txt
 
-4. Create a `.env` file:
-```bash
-GROQ_API_KEY=your_groq_api_key_here
-YOLO_MODEL_PATH=yolov8s.pt
-CONFIG_PATH=config.yaml
-```
+# Create .env file
+echo "GROQ_API_KEY=your_key_here" > .env
 
-5. Download YOLO model (if not present):
-The model will be downloaded automatically on first run, or you can download it manually.
-
-6. Run the backend:
-```bash
-# Make sure your conda environment is activated
-conda activate airis-backend
+# Run server
 python main.py
 ```
 
-The backend will be available at `http://localhost:8000`
+Backend runs at `http://localhost:8000`
 
-**Note**: Always activate your conda environment before running the backend:
-```bash
-conda activate airis-backend
-```
+### Frontend
 
-### Alternative: Using Python venv
-
-If you prefer not to use conda:
-
-1. Navigate to the backend directory:
-```bash
-cd backend
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Follow steps 4-6 from the conda setup above.
-
-## Frontend Setup
-
-1. Navigate to the frontend directory:
 ```bash
 cd frontend
-```
 
-2. Install dependencies:
-```bash
+# Install dependencies
 npm install
-```
 
-3. Create a `.env` file:
-```bash
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-4. Run the development server:
-```bash
+# Run dev server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`
+Frontend runs at `http://localhost:5173`
 
 ## Usage
 
 1. Start the backend server
-2. Start the frontend development server
-3. Open your browser to `http://localhost:5173`
-4. Click "Start Camera" to begin
-5. Select a mode (Activity Guide or Scene Description)
-6. For Activity Guide: Enter a task and follow the instructions
-7. For Scene Description: Click "Start Recording" to begin analysis
+2. Start the frontend dev server
+3. Open `http://localhost:5173` in your browser
+4. Click "Start Camera" to enable video feed
+5. Choose a mode:
+   - **Activity Guide**: Enter an object to find (e.g., "water bottle")
+   - **Scene Description**: Click "Start Recording" for continuous analysis
 
 ## API Documentation
 
 Once the backend is running, visit `http://localhost:8000/docs` for interactive API documentation.
 
+## Hardware Integration (In Progress)
+
+The software currently uses laptop webcam/mic for testing. Production hardware:
+
+| Component | Connection | Status |
+|:----------|:-----------|:------:|
+| ESP32-CAM | WiFi → Server | 🔄 In Progress |
+| Arduino (Mic/Speaker) | Bluetooth → Server | 🔄 In Progress |
+
+The frontend serves as a proof-of-concept GUI. The final device will be fully usable by blind users through physical buttons and audio feedback.
+
 ## Environment Variables
 
-### Backend
-- `GROQ_API_KEY`: Your Groq API key (required)
-- `YOLO_MODEL_PATH`: Path to YOLO model file (default: yolov8s.pt)
-- `CONFIG_PATH`: Path to config.yaml (default: config.yaml)
+### Backend (.env)
+```bash
+GROQ_API_KEY=your_groq_api_key    # Required
+YOLO_MODEL_PATH=yolov8s.pt        # Optional, auto-downloads
+```
 
-### Frontend
-- `VITE_API_BASE_URL`: Backend API URL (default: http://localhost:8000)
+### Frontend (.env)
+```bash
+VITE_API_BASE_URL=http://localhost:8000  # Optional, default shown
+```
 
-## Development
+## Tech Stack
 
-### Backend
-- Uses FastAPI with async/await
-- Services are modular and testable
-- WebSocket support for real-time camera streaming
-
-### Frontend
-- React with TypeScript
-- Tailwind CSS v4 for styling
-- Axios for API calls
-- Lucide React for icons
+| Component | Technology |
+|:----------|:-----------|
+| Backend | FastAPI, Python 3.10+ |
+| Object Detection | YOLOv8 (Ultralytics) |
+| Hand Tracking | MediaPipe |
+| Image Captioning | BLIP |
+| LLM Reasoning | Groq API (Llama 3) |
+| Speech-to-Text | Whisper |
+| Text-to-Speech | pyttsx3 |
+| Frontend | React, TypeScript, Vite |
+| Styling | Tailwind CSS v4 |
 
 ## License
 
 MIT
-

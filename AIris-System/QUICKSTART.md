@@ -1,132 +1,142 @@
 # Quick Start Guide
 
+Get AIris running in 5 minutes.
+
+---
+
 ## Step 1: Backend Setup
 
-### 1.1 Create .env file
-
-Navigate to the backend directory and create a `.env` file:
-
+### 1.1 Navigate to backend
 ```bash
-cd backend
+cd AIris-System/backend
 ```
 
-Create the `.env` file with your configuration:
-
+### 1.2 Create Python environment
 ```bash
-# Required
-GROQ_API_KEY=your_groq_api_key_here
-
-# Optional (defaults shown)
-YOLO_MODEL_PATH=yolov8s.pt
-CONFIG_PATH=config.yaml
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 ```
 
-**Note**: The `config.yaml` file is already in place, so you don't need to create it.
-
-### 1.2 Activate conda environment and start backend
-
+### 1.3 Install dependencies
 ```bash
-# Make sure you're in the backend directory
-cd backend
+pip install -r requirements.txt
+```
 
-# Activate the conda environment
-conda activate airis-backend
+### 1.4 Create .env file
+```bash
+# Create the file with your Groq API key
+echo "GROQ_API_KEY=your_groq_api_key_here" > .env
+```
 
-# Start the backend server
+> Get a free API key at [console.groq.com](https://console.groq.com/keys)
+
+### 1.5 Start the backend
+```bash
 python main.py
 ```
 
-You should see output like:
+You should see:
 ```
 INFO:     Started server process
-INFO:     Waiting for application startup.
-Initializing AIris backend...
-Loading models...
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
 
-The backend is now running at `http://localhost:8000`
+**Keep this terminal open!**
 
-**Keep this terminal window open!**
+---
 
 ## Step 2: Frontend Setup
 
-Open a **new terminal window** (keep the backend running):
+Open a **new terminal** (keep backend running).
 
-### 2.1 Navigate to frontend and install dependencies
-
+### 2.1 Navigate to frontend
 ```bash
-cd AIris-Final-App/frontend
+cd AIris-System/frontend
+```
+
+### 2.2 Install dependencies
+```bash
 npm install
 ```
 
-### 2.2 Create frontend .env file (optional)
-
-The frontend will default to `http://localhost:8000`, but you can create a `.env` file if needed:
-
-```bash
-# Create .env file (optional - defaults shown)
-echo "VITE_API_BASE_URL=http://localhost:8000" > .env
-```
-
-### 2.3 Start the frontend development server
-
+### 2.3 Start dev server
 ```bash
 npm run dev
 ```
 
-You should see output like:
+You should see:
 ```
-  VITE v7.x.x  ready in xxx ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: use --host to expose
+VITE ready in xxx ms
+➜  Local:   http://localhost:5173/
 ```
 
-The frontend is now running at `http://localhost:5173`
+---
 
-## Step 3: Use the Application
+## Step 3: Use the App
 
-1. Open your browser and go to: `http://localhost:5173`
-2. Click the **"Start Camera"** button (camera icon in the header)
+1. Open `http://localhost:5173` in your browser
+2. Click **"Start Camera"** (camera icon in header)
 3. Grant camera permissions when prompted
-4. Select a mode:
-   - **Activity Guide**: Enter a task like "find my watch" and follow instructions
-   - **Scene Description**: Click "Start Recording" to begin scene analysis
+4. Choose a mode:
+
+### Activity Guide Mode
+- Enter an object to find (e.g., "water bottle", "my phone")
+- Follow the audio instructions to locate and reach the object
+- The system tracks your hand and guides you to the target
+
+### Scene Description Mode  
+- Click **"Start Recording"**
+- The system continuously analyzes and describes your environment
+- Safety alerts are prioritized
+
+---
 
 ## Troubleshooting
 
 ### Backend won't start
-- Make sure conda environment is activated: `conda activate airis-backend`
-- Check that `.env` file exists and has `GROQ_API_KEY` set
-- Verify Python version: `python --version` (should be 3.10)
+- Check Python version: `python --version` (need 3.10+)
+- Make sure `.env` file exists with `GROQ_API_KEY`
+- Activate virtual environment: `source venv/bin/activate`
 
-### Frontend can't connect to backend
-- Make sure backend is running on port 8000
-- Check that `VITE_API_BASE_URL` in frontend `.env` matches backend URL
+### Frontend can't connect
+- Verify backend is running on port 8000
 - Check browser console for errors
-
-### Camera not working
-- Grant camera permissions in browser/system settings
-- Check that no other app is using the camera
 - Try refreshing the page
 
-### Models not loading
-- First run will download YOLO model automatically (may take a few minutes)
-- Check internet connection
-- Models are cached, so subsequent runs will be faster
+### Camera not working
+- Grant camera permissions in browser settings
+- Close other apps using the camera
+- Try a different browser (Chrome recommended)
+
+### Models loading slowly
+- First run downloads YOLO model (~25MB) — be patient
+- Subsequent runs use cached models
+
+---
 
 ## What's Running
 
-- **Backend**: FastAPI server on `http://localhost:8000`
-- **Frontend**: Vite dev server on `http://localhost:5173`
-- **API Docs**: Visit `http://localhost:8000/docs` for interactive API documentation
+| Service | URL | Purpose |
+|:--------|:----|:--------|
+| Backend | `http://localhost:8000` | FastAPI server |
+| API Docs | `http://localhost:8000/docs` | Interactive API documentation |
+| Frontend | `http://localhost:5173` | React development interface |
+
+---
 
 ## Next Steps
 
-- The YOLO model will download automatically on first run
-- All ML models (YOLO, MediaPipe, BLIP) will be loaded when needed
-- Check the terminal for any error messages
-- Use the API docs at `/docs` to test endpoints directly
+- Test both modes with your laptop camera
+- Check the API docs at `/docs` to understand available endpoints
+- See the main [README.md](./README.md) for architecture details
 
+---
+
+## Hardware Note
+
+This setup uses your laptop's camera and speakers for testing. The production device will use:
+- **ESP32-CAM** for wireless video (WiFi)
+- **Arduino** for wireless audio (Bluetooth)
+
+Hardware integration is currently in progress.
