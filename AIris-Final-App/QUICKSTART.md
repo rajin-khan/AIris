@@ -130,3 +130,4 @@ The frontend is now running at `http://localhost:5173`
 - Check the terminal for any error messages
 - Use the API docs at `/docs` to test endpoints directly
 
+

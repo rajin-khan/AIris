@@ -42,7 +42,7 @@
 ### **Hardware Components**
 ```mermaid
 graph TB
-    A[👓 Spectacle Camera] --> B[🖥️ Raspberry Pi 5]
+    A[👓 Spectacle Camera] --> B[🖥️ AI Server]
     B --> C[🔊 Directional Speaker]
     B --> D[🔋 Portable Battery]
     B --> E[📱 Optional Phone Sync]

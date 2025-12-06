@@ -43,3 +43,4 @@ def draw_guidance_on_frame(frame: np.ndarray, text: str, font: ImageFont.FreeTyp
     # Convert back to BGR for OpenCV
     return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
+

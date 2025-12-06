@@ -32,3 +32,4 @@ class TTSService:
         duration = (word_count / 2.5) + 0.5  # +0.5 seconds buffer
         return max(duration, 2.0)  # Minimum 2 seconds
 
+
