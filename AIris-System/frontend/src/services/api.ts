@@ -55,6 +55,9 @@ export type SceneDescriptionResponse = {
   description?: string;
   summary?: string;
   safety_alert: boolean;
+  risk_score?: number;
+  risk_factors?: string[];
+  confidence?: number;
   is_recording: boolean;
   stats?: {
     elapsed_seconds: number;
@@ -64,8 +67,19 @@ export type SceneDescriptionResponse = {
     buffer_size: number;
     buffer_max: number;
     analysis_interval: number;
+    current_risk_score?: number;
+    fps?: number;
   };
   recent_observations?: string[];
+  fall_alert_sent?: boolean;  // True if a fall alert was just sent
+  alert_sent?: boolean;       // True if any alert (fall or risk-based) was just sent
+};
+
+export type RiskThresholdResponse = {
+  threshold: number;
+  min: number;
+  max: number;
+  description: Record<string, string>;
 };
 
 export const apiClient = {
@@ -223,6 +237,17 @@ export const apiClient = {
 
   async sendRealWeeklyReport(): Promise<{ status: string; message: string }> {
     const response = await client.post('/api/v1/email/send-weekly-report');
+    return response.data;
+  },
+
+  // Risk Threshold endpoints
+  async getRiskThreshold(): Promise<RiskThresholdResponse> {
+    const response = await client.get('/api/v1/email/risk-threshold');
+    return response.data;
+  },
+
+  async setRiskThreshold(threshold: number): Promise<{ status: string; threshold: number; message: string }> {
+    const response = await client.post('/api/v1/email/risk-threshold', { threshold });
     return response.data;
   },
 };

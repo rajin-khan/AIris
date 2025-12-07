@@ -13,6 +13,8 @@ import {
   Mail,
   User,
   Send,
+  Shield,
+  Info,
 } from "lucide-react";
 import { apiClient } from "../services/api";
 
@@ -33,7 +35,7 @@ export default function HardwareSettings({
   onCameraSourceChange,
 }: HardwareSettingsProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("camera");
-  
+
   // Camera state
   const [esp32Mode, setEsp32Mode] = useState<ESP32Mode>("live-stream");
   const [ipAddress, setIpAddress] = useState("");
@@ -49,7 +51,9 @@ export default function HardwareSettings({
   // Email state
   const [guardianEmail, setGuardianEmail] = useState("");
   const [guardianName, setGuardianName] = useState("");
-  const [currentGuardianEmail, setCurrentGuardianEmail] = useState<string | null>(null);
+  const [currentGuardianEmail, setCurrentGuardianEmail] = useState<
+    string | null
+  >(null);
   const [isSavingEmail, setIsSavingEmail] = useState(false);
   const [emailStatus, setEmailStatus] = useState<{
     type: "success" | "error" | null;
@@ -57,10 +61,19 @@ export default function HardwareSettings({
   }>({ type: null, message: "" });
   const [senderConfigured, setSenderConfigured] = useState(false);
 
-  // Load guardian email on mount
+  // Risk threshold state
+  const [riskThreshold, setRiskThreshold] = useState(0.5);
+  const [isSavingThreshold, setIsSavingThreshold] = useState(false);
+  const [thresholdStatus, setThresholdStatus] = useState<{
+    type: "success" | "error" | null;
+    message: string;
+  }>({ type: null, message: "" });
+
+  // Load guardian email and risk threshold on mount
   useEffect(() => {
     if (isOpen) {
       loadGuardianEmail();
+      loadRiskThreshold();
     }
   }, [isOpen]);
 
@@ -75,6 +88,54 @@ export default function HardwareSettings({
     } catch (error) {
       console.error("Failed to load guardian email:", error);
     }
+  };
+
+  const loadRiskThreshold = async () => {
+    try {
+      const data = await apiClient.getRiskThreshold();
+      setRiskThreshold(data.threshold);
+    } catch (error) {
+      console.error("Failed to load risk threshold:", error);
+    }
+  };
+
+  const handleSaveThreshold = async () => {
+    setIsSavingThreshold(true);
+    setThresholdStatus({ type: null, message: "" });
+
+    try {
+      await apiClient.setRiskThreshold(riskThreshold);
+      setThresholdStatus({
+        type: "success",
+        message: `Risk threshold set to ${(riskThreshold * 100).toFixed(0)}%`,
+      });
+      setTimeout(() => setThresholdStatus({ type: null, message: "" }), 3000);
+    } catch (error: any) {
+      console.error("Failed to save risk threshold:", error);
+      setThresholdStatus({
+        type: "error",
+        message: error.response?.data?.detail || "Failed to save threshold",
+      });
+    } finally {
+      setIsSavingThreshold(false);
+    }
+  };
+
+  const getThresholdDescription = (value: number): string => {
+    if (value <= 0.15)
+      return "Maximum Sensitivity — Alert on any detected concern";
+    if (value <= 0.25) return "Very Sensitive — Alert on minor concerns";
+    if (value <= 0.35) return "Balanced — Alert on moderate concerns";
+    if (value <= 0.45) return "Conservative — Only notable concerns";
+    return "Low Sensitivity — Only significant concerns trigger alerts";
+  };
+
+  const getThresholdColor = (value: number): string => {
+    if (value <= 0.15) return "text-red-400";
+    if (value <= 0.25) return "text-orange-400";
+    if (value <= 0.35) return "text-brand-gold";
+    if (value <= 0.45) return "text-yellow-400";
+    return "text-green-400";
   };
 
   // Auto-configure webcam when switching to local mode
@@ -170,7 +231,8 @@ export default function HardwareSettings({
       console.error("Failed to save guardian email:", error);
       setEmailStatus({
         type: "error",
-        message: error.response?.data?.detail || "Failed to save guardian email",
+        message:
+          error.response?.data?.detail || "Failed to save guardian email",
       });
     } finally {
       setIsSavingEmail(false);
@@ -178,8 +240,16 @@ export default function HardwareSettings({
   };
 
   const tabs = [
-    { id: "camera" as SettingsTab, label: "Camera", icon: <Camera className="w-4 h-4" /> },
-    { id: "email" as SettingsTab, label: "Email", icon: <Mail className="w-4 h-4" /> },
+    {
+      id: "camera" as SettingsTab,
+      label: "Camera",
+      icon: <Camera className="w-4 h-4" />,
+    },
+    {
+      id: "email" as SettingsTab,
+      label: "Email",
+      icon: <Mail className="w-4 h-4" />,
+    },
   ];
 
   return (
@@ -266,7 +336,8 @@ export default function HardwareSettings({
                       Using Laptop Camera
                     </h3>
                     <p className="text-dark-text-secondary mt-1.5 text-sm">
-                      The system will use your laptop's built-in webcam. No additional configuration required.
+                      The system will use your laptop's built-in webcam. No
+                      additional configuration required.
                     </p>
                   </div>
                   <div className="flex items-center justify-center gap-2 text-green-400 text-sm">
@@ -334,7 +405,8 @@ export default function HardwareSettings({
                           />
                         </div>
                         <p className="text-xs text-dark-text-secondary leading-relaxed">
-                          Enter the IP address shown in the Arduino Serial Monitor.
+                          Enter the IP address shown in the Arduino Serial
+                          Monitor.
                         </p>
                       </div>
 
@@ -375,7 +447,13 @@ export default function HardwareSettings({
                             <p className="font-semibold">Setup Instructions:</p>
                             <ol className="list-decimal list-inside space-y-1 text-dark-text-secondary text-xs">
                               <li>Power on your ESP32-CAM</li>
-                              <li>Connect your PC to <span className="font-semibold text-brand-gold">ESP32-CAM-SETUP</span> WiFi</li>
+                              <li>
+                                Connect your PC to{" "}
+                                <span className="font-semibold text-brand-gold">
+                                  ESP32-CAM-SETUP
+                                </span>{" "}
+                                WiFi
+                              </li>
                               <li>Enter your Home WiFi credentials below</li>
                               <li>Click "Send Configuration"</li>
                             </ol>
@@ -385,7 +463,9 @@ export default function HardwareSettings({
 
                       <div className="space-y-3">
                         <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-dark-text-secondary">Home WiFi SSID</label>
+                          <label className="text-sm font-medium text-dark-text-secondary">
+                            Home WiFi SSID
+                          </label>
                           <input
                             type="text"
                             value={wifiSSID}
@@ -397,7 +477,9 @@ export default function HardwareSettings({
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="text-sm font-medium text-dark-text-secondary">WiFi Password</label>
+                          <label className="text-sm font-medium text-dark-text-secondary">
+                            WiFi Password
+                          </label>
                           <input
                             type="password"
                             value={wifiPassword}
@@ -409,17 +491,25 @@ export default function HardwareSettings({
                         </div>
 
                         {provisionStatus.type && (
-                          <div className={`rounded-xl p-3 border flex items-start gap-2.5 ${
-                            provisionStatus.type === "success"
-                              ? "bg-green-500/10 border-green-500/30"
-                              : "bg-red-500/10 border-red-500/30"
-                          }`}>
+                          <div
+                            className={`rounded-xl p-3 border flex items-start gap-2.5 ${
+                              provisionStatus.type === "success"
+                                ? "bg-green-500/10 border-green-500/30"
+                                : "bg-red-500/10 border-red-500/30"
+                            }`}
+                          >
                             {provisionStatus.type === "success" ? (
                               <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                             ) : (
                               <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                             )}
-                            <p className={`text-sm ${provisionStatus.type === "success" ? "text-green-300" : "text-red-300"}`}>
+                            <p
+                              className={`text-sm ${
+                                provisionStatus.type === "success"
+                                  ? "text-green-300"
+                                  : "text-red-300"
+                              }`}
+                            >
                               {provisionStatus.message}
                             </p>
                           </div>
@@ -463,7 +553,8 @@ export default function HardwareSettings({
                       Email Not Configured
                     </h3>
                     <p className="text-dark-text-secondary mt-1.5 text-sm">
-                      Please configure EMAIL_SENDER and EMAIL_PASSWORD in the backend .env file to enable email notifications.
+                      Please configure EMAIL_SENDER and EMAIL_PASSWORD in the
+                      backend .env file to enable email notifications.
                     </p>
                   </div>
                 </div>
@@ -477,8 +568,12 @@ export default function HardwareSettings({
                           <User className="w-5 h-5 text-brand-gold" />
                         </div>
                         <div className="flex-1">
-                          <div className="text-xs text-dark-text-secondary uppercase tracking-wider">Current Guardian</div>
-                          <div className="text-sm text-dark-text-primary font-medium">{currentGuardianEmail}</div>
+                          <div className="text-xs text-dark-text-secondary uppercase tracking-wider">
+                            Current Guardian
+                          </div>
+                          <div className="text-sm text-dark-text-primary font-medium">
+                            {currentGuardianEmail}
+                          </div>
                         </div>
                         <CheckCircle2 className="w-5 h-5 text-green-400" />
                       </div>
@@ -490,17 +585,22 @@ export default function HardwareSettings({
                     <div className="flex items-center gap-2">
                       <Mail className="w-5 h-5 text-brand-gold" />
                       <h3 className="text-base font-semibold text-dark-text-primary font-heading">
-                        {currentGuardianEmail ? "Update Guardian" : "Set Up Guardian"}
+                        {currentGuardianEmail
+                          ? "Update Guardian"
+                          : "Set Up Guardian"}
                       </h3>
                     </div>
 
                     <p className="text-sm text-dark-text-secondary">
-                      The guardian will receive safety alerts, daily summaries, and weekly reports about your loved one's wellbeing.
+                      The guardian will receive safety alerts, daily summaries,
+                      and weekly reports about your loved one's wellbeing.
                     </p>
 
                     <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-dark-text-secondary">Guardian Name</label>
+                        <label className="text-sm font-medium text-dark-text-secondary">
+                          Guardian Name
+                        </label>
                         <div className="relative">
                           <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-text-secondary" />
                           <input
@@ -514,7 +614,9 @@ export default function HardwareSettings({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-dark-text-secondary">Guardian Email</label>
+                        <label className="text-sm font-medium text-dark-text-secondary">
+                          Guardian Email
+                        </label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-dark-text-secondary" />
                           <input
@@ -528,17 +630,25 @@ export default function HardwareSettings({
                       </div>
 
                       {emailStatus.type && (
-                        <div className={`rounded-xl p-3 border flex items-start gap-2.5 ${
-                          emailStatus.type === "success"
-                            ? "bg-green-500/10 border-green-500/30"
-                            : "bg-red-500/10 border-red-500/30"
-                        }`}>
+                        <div
+                          className={`rounded-xl p-3 border flex items-start gap-2.5 ${
+                            emailStatus.type === "success"
+                              ? "bg-green-500/10 border-green-500/30"
+                              : "bg-red-500/10 border-red-500/30"
+                          }`}
+                        >
                           {emailStatus.type === "success" ? (
                             <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
                           ) : (
                             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
                           )}
-                          <p className={`text-sm ${emailStatus.type === "success" ? "text-green-300" : "text-red-300"}`}>
+                          <p
+                            className={`text-sm ${
+                              emailStatus.type === "success"
+                                ? "text-green-300"
+                                : "text-red-300"
+                            }`}
+                          >
                             {emailStatus.message}
                           </p>
                         </div>
@@ -564,21 +674,153 @@ export default function HardwareSettings({
                     </div>
                   </div>
 
+                  {/* Risk Threshold Slider */}
+                  <div className="p-4 bg-dark-bg rounded-xl border border-dark-border space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Shield className="w-5 h-5 text-brand-gold" />
+                      <h3 className="text-base font-semibold text-dark-text-primary font-heading">
+                        Alert Sensitivity
+                      </h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-dark-text-secondary">
+                          Risk Threshold
+                        </span>
+                        <span
+                          className={`text-sm font-semibold ${getThresholdColor(
+                            riskThreshold
+                          )}`}
+                        >
+                          {(riskThreshold * 100).toFixed(0)}%
+                        </span>
+                      </div>
+
+                      {/* Slider */}
+                      <div className="relative">
+                        <input
+                          type="range"
+                          min="0.1"
+                          max="0.5"
+                          step="0.05"
+                          value={riskThreshold}
+                          onChange={(e) =>
+                            setRiskThreshold(parseFloat(e.target.value))
+                          }
+                          className="w-full h-2 bg-dark-border rounded-lg appearance-none cursor-pointer slider-gold"
+                        />
+                        {/* Tick marks */}
+                        <div className="flex justify-between px-1 mt-1">
+                          <span className="text-[10px] text-dark-text-secondary">
+                            10%
+                          </span>
+                          <span className="text-[10px] text-dark-text-secondary">
+                            20%
+                          </span>
+                          <span className="text-[10px] text-dark-text-secondary">
+                            30%
+                          </span>
+                          <span className="text-[10px] text-dark-text-secondary">
+                            40%
+                          </span>
+                          <span className="text-[10px] text-dark-text-secondary">
+                            50%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      <div className="flex items-start gap-2 p-3 bg-dark-surface rounded-lg border border-dark-border">
+                        <Info className="w-4 h-4 text-dark-text-secondary flex-shrink-0 mt-0.5" />
+                        <p
+                          className={`text-xs ${getThresholdColor(
+                            riskThreshold
+                          )}`}
+                        >
+                          {getThresholdDescription(riskThreshold)}
+                        </p>
+                      </div>
+
+                      {/* Explanation */}
+                      <p className="text-xs text-dark-text-secondary leading-relaxed">
+                        Lower values = more sensitive (more alerts, but may
+                        include false positives). Higher values = less sensitive
+                        (fewer alerts, only critical situations).
+                      </p>
+
+                      {thresholdStatus.type && (
+                        <div
+                          className={`rounded-xl p-3 border flex items-start gap-2.5 ${
+                            thresholdStatus.type === "success"
+                              ? "bg-green-500/10 border-green-500/30"
+                              : "bg-red-500/10 border-red-500/30"
+                          }`}
+                        >
+                          {thresholdStatus.type === "success" ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                          )}
+                          <p
+                            className={`text-sm ${
+                              thresholdStatus.type === "success"
+                                ? "text-green-300"
+                                : "text-red-300"
+                            }`}
+                          >
+                            {thresholdStatus.message}
+                          </p>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleSaveThreshold}
+                        disabled={isSavingThreshold}
+                        className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-brand-gold text-brand-charcoal rounded-xl font-semibold hover:bg-opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                      >
+                        {isSavingThreshold ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Threshold
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Email Info */}
                   <div className="p-4 bg-dark-bg rounded-xl border border-dark-border space-y-3">
-                    <h4 className="text-xs font-medium text-dark-text-secondary uppercase tracking-wider">Notification Schedule</h4>
+                    <h4 className="text-xs font-medium text-dark-text-secondary uppercase tracking-wider">
+                      Notification Schedule
+                    </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
-                        <span className="text-dark-text-secondary">Safety Alerts</span>
-                        <span className="text-dark-text-primary">Immediate</span>
+                        <span className="text-dark-text-secondary">
+                          Safety Alerts
+                        </span>
+                        <span className="text-dark-text-primary">
+                          Immediate (when risk ≥ threshold)
+                        </span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-dark-text-secondary">Daily Summary</span>
+                        <span className="text-dark-text-secondary">
+                          Daily Summary
+                        </span>
                         <span className="text-dark-text-primary">3:00 AM</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-dark-text-secondary">Weekly Report</span>
-                        <span className="text-dark-text-primary">Fridays, 12:00 AM</span>
+                        <span className="text-dark-text-secondary">
+                          Weekly Report
+                        </span>
+                        <span className="text-dark-text-primary">
+                          Fridays, 12:00 AM
+                        </span>
                       </div>
                     </div>
                   </div>

@@ -35,6 +35,7 @@ interface SummaryEvent {
   timestamp: string;
   summary: string;
   isAlert: boolean;
+  riskScore: number;
 }
 
 export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
@@ -43,22 +44,33 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   const [currentDescription, setCurrentDescription] = useState("");
   const [currentSummary, setCurrentSummary] = useState("");
   const [safetyAlert, setSafetyAlert] = useState(false);
+  const [riskScore, setRiskScore] = useState(0);
   const [frameUrl, setFrameUrl] = useState<string | null>(null);
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [recordingLogs, setRecordingLogs] = useState<any[]>([]);
   const [expandedLogIdx, setExpandedLogIdx] = useState<number | null>(0);
-  const [analysisCountdown, setAnalysisCountdown] = useState(3);
+  const [analysisCountdown, setAnalysisCountdown] = useState(0.5); // 2 FPS = 0.5s intervals
   const [elapsedTime, setElapsedTime] = useState(0);
   const [currentSessionEvents, setCurrentSessionEvents] = useState<
     SummaryEvent[]
   >([]);
   const [filledFrames, setFilledFrames] = useState<number[]>([]);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
-  
+
   // Email dropdown state
   const [isMailDropdownOpen, setIsMailDropdownOpen] = useState(false);
   const [emailSending, setEmailSending] = useState<string | null>(null);
-  const [emailStatus, setEmailStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [emailStatus, setEmailStatus] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  // Alert notification state for FAB
+  const [alertNotification, setAlertNotification] = useState<{
+    show: boolean;
+    message: string;
+    timestamp: number;
+  } | null>(null);
 
   const frameIntervalRef = useRef<number | null>(null);
   const mailDropdownRef = useRef<HTMLDivElement | null>(null);
@@ -69,7 +81,7 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   const lastSummaryRef = useRef<string>("");
   const frameCountRef = useRef(0);
 
-  const BUFFER_MAX = 5;
+  const BUFFER_MAX = 5; // 5 frames at 2 FPS = 2.5 seconds
 
   useEffect(() => {
     loadLogs();
@@ -78,7 +90,10 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   // Close mail dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (mailDropdownRef.current && !mailDropdownRef.current.contains(event.target as Node)) {
+      if (
+        mailDropdownRef.current &&
+        !mailDropdownRef.current.contains(event.target as Node)
+      ) {
         setIsMailDropdownOpen(false);
       }
     };
@@ -95,10 +110,10 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   }, [emailStatus]);
 
   const handleSendEmail = async (type: string, isDummy: boolean) => {
-    const sendingKey = `${type}-${isDummy ? 'dummy' : 'real'}`;
+    const sendingKey = `${type}-${isDummy ? "dummy" : "real"}`;
     setEmailSending(sendingKey);
     setEmailStatus(null);
-    
+
     try {
       let result;
       switch (type) {
@@ -126,12 +141,15 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
         default:
           throw new Error("Unknown email type");
       }
-      
-      setEmailStatus({ type: "success", message: result.message || "Email sent!" });
+
+      setEmailStatus({
+        type: "success",
+        message: result.message || "Email sent!",
+      });
     } catch (error: any) {
-      setEmailStatus({ 
-        type: "error", 
-        message: error.response?.data?.detail || "Failed to send email" 
+      setEmailStatus({
+        type: "error",
+        message: error.response?.data?.detail || "Failed to send email",
       });
     } finally {
       setEmailSending(null);
@@ -221,6 +239,33 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
           setStats(result.stats);
         }
 
+        // Check if an alert was sent (fall alert or risk-based alert)
+        const alertWasSent =
+          result.alert_sent || result.fall_alert_sent || false;
+        if (alertWasSent) {
+          // Show notification on the FAB
+          const alertType = result.fall_alert_sent
+            ? "Fall Alert"
+            : "Safety Alert";
+          const notificationTimestamp = Date.now();
+          setAlertNotification({
+            show: true,
+            message: `${alertType} sent to guardian`,
+            timestamp: notificationTimestamp,
+          });
+
+          // Auto-hide notification after 5 seconds
+          setTimeout(() => {
+            setAlertNotification((prev) => {
+              // Only hide if it's the same notification (timestamp matches)
+              if (prev && prev.timestamp === notificationTimestamp) {
+                return { ...prev, show: false };
+              }
+              return prev;
+            });
+          }, 5000);
+        }
+
         // Check if we got a new summary
         if (result.summary && result.summary !== lastSummaryRef.current) {
           setIsGeneratingSummary(true);
@@ -236,6 +281,7 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
               timestamp: new Date().toISOString(),
               summary: newSummary,
               isAlert: isAlert,
+              riskScore: result.risk_score || 0,
             };
             setCurrentSessionEvents((prev) => [newEvent, ...prev]);
 
@@ -247,9 +293,10 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
         }
 
         setSafetyAlert(result.safety_alert || false);
+        setRiskScore(result.risk_score || 0);
         setIsRecording(result.is_recording);
         setIsProcessing(false);
-        setAnalysisCountdown(3);
+        setAnalysisCountdown(0.5); // Reset for 2 FPS
       } catch (error) {
         console.error("Error processing frame:", error);
         setIsProcessing(false);
@@ -263,9 +310,10 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   const startCountdownTimer = () => {
     if (countdownIntervalRef.current)
       clearInterval(countdownIntervalRef.current);
+    // At 2 FPS, we update every 0.5 seconds - countdown shows time to next summary
     countdownIntervalRef.current = window.setInterval(() => {
-      setAnalysisCountdown((prev) => (prev > 0 ? prev - 1 : 3));
-    }, 1000);
+      setAnalysisCountdown((prev) => (prev > 0.1 ? prev - 0.5 : 2.5)); // 2.5 seconds per summary cycle
+    }, 500);
   };
 
   const startElapsedTimer = () => {
@@ -321,6 +369,7 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
         setCurrentDescription("");
         setCurrentSummary("");
         setSafetyAlert(false);
+        setRiskScore(0);
         setStats(null);
         setCurrentSessionEvents([]);
         setFilledFrames([]);
@@ -563,25 +612,88 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
             </p>
           </div>
 
+          {/* Risk Score Bar (when recording) */}
+          {isRecording && riskScore > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider">
+                  Risk Level
+                </span>
+                <span
+                  className={`text-xs font-medium ${
+                    riskScore >= 0.7
+                      ? "text-red-400"
+                      : riskScore >= 0.5
+                      ? "text-yellow-400"
+                      : "text-green-400"
+                  }`}
+                >
+                  {(riskScore * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="h-1.5 bg-dark-bg rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 rounded-full ${
+                    riskScore >= 0.7
+                      ? "bg-red-500"
+                      : riskScore >= 0.5
+                      ? "bg-yellow-500"
+                      : "bg-green-500"
+                  }`}
+                  style={{ width: `${riskScore * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Current Summary */}
-          <div
-            className={`bg-dark-bg rounded-lg p-3 min-h-[60px] transition-all ${
-              safetyAlert ? "border border-red-500/50" : ""
-            }`}
-          >
+          <div className="bg-dark-bg rounded-lg p-3 min-h-[60px] transition-all">
             {safetyAlert && (
-              <div className="flex items-center gap-1.5 mb-2 text-red-400 text-xs">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Safety Alert
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-red-400 text-xs">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Safety Alert
+                </div>
+                <span className="text-xs text-red-400/70">
+                  Risk: {(riskScore * 100).toFixed(0)}%
+                </span>
               </div>
             )}
             {currentSummary ? (
-              <p className="text-dark-text-primary text-sm leading-relaxed">
-                {currentSummary}
-              </p>
+              <div>
+                {/* Risk Score Badge */}
+                {riskScore > 0 && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                        riskScore >= 0.7
+                          ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                          : riskScore >= 0.5
+                          ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                          : riskScore >= 0.3
+                          ? "bg-orange-500/20 text-orange-400 border border-orange-500/30"
+                          : "bg-green-500/20 text-green-400 border border-green-500/30"
+                      }`}
+                    >
+                      {riskScore >= 0.7
+                        ? "High Risk"
+                        : riskScore >= 0.5
+                        ? "Moderate Risk"
+                        : riskScore >= 0.3
+                        ? "Low Risk"
+                        : "Safe"}
+                      {" · "}
+                      {(riskScore * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                )}
+                <p className="text-dark-text-primary text-sm leading-relaxed">
+                  {currentSummary}
+                </p>
+              </div>
             ) : (
               <p className="text-dark-text-secondary text-sm opacity-60">
-                Summary will appear after {BUFFER_MAX} observations
+                Summary will appear after {BUFFER_MAX} observations (~2.5s)
               </p>
             )}
           </div>
@@ -626,6 +738,20 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
                       <div className="flex items-center gap-2 mb-1 text-dark-text-secondary">
                         <Clock className="w-3 h-3" />
                         {formatTimeShort(event.timestamp)}
+                        {/* Risk Score Badge */}
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                            event.riskScore >= 0.7
+                              ? "bg-red-500/20 text-red-400"
+                              : event.riskScore >= 0.5
+                              ? "bg-yellow-500/20 text-yellow-400"
+                              : event.riskScore >= 0.3
+                              ? "bg-orange-500/20 text-orange-400"
+                              : "bg-green-500/20 text-green-400"
+                          }`}
+                        >
+                          {(event.riskScore * 100).toFixed(0)}%
+                        </span>
                         {event.isAlert && (
                           <span className="text-red-400 text-[10px] font-medium ml-auto">
                             ALERT
@@ -750,21 +876,26 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
             <div className="px-4 py-3 border-b border-dark-border bg-dark-bg/50">
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-brand-gold" />
-                <span className="text-sm font-semibold text-dark-text-primary">Email Actions</span>
+                <span className="text-sm font-semibold text-dark-text-primary">
+                  Email Actions
+                </span>
               </div>
             </div>
 
             {/* Status Message */}
             {emailStatus && (
-              <div className={`px-4 py-2 text-xs flex items-center gap-2 ${
-                emailStatus.type === "success" 
-                  ? "bg-green-500/10 text-green-400" 
-                  : "bg-red-500/10 text-red-400"
-              }`}>
-                {emailStatus.type === "success" ? "✓" : "✕"} {emailStatus.message}
+              <div
+                className={`px-4 py-2 text-xs flex items-center gap-2 ${
+                  emailStatus.type === "success"
+                    ? "bg-green-500/10 text-green-400"
+                    : "bg-red-500/10 text-red-400"
+                }`}
+              >
+                {emailStatus.type === "success" ? "✓" : "✕"}{" "}
+                {emailStatus.message}
               </div>
             )}
-            
+
             <div className="p-3 space-y-3">
               {/* Config Test */}
               <button
@@ -772,20 +903,26 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
                 disabled={emailSending !== null}
                 className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-dark-bg hover:bg-dark-border/50 transition-colors disabled:opacity-50"
               >
-                <span className="text-sm text-dark-text-primary">Send Config Test</span>
+                <span className="text-sm text-dark-text-primary">
+                  Send Config Test
+                </span>
                 {emailSending === "test-real" ? (
                   <Loader2 className="w-4 h-4 text-brand-gold animate-spin" />
                 ) : (
                   <Send className="w-4 h-4 text-dark-text-secondary" />
                 )}
               </button>
-              
+
               <div className="border-t border-dark-border pt-3 space-y-2">
                 {/* Alert */}
                 <div>
                   <div className="flex items-center justify-between px-1 mb-1.5">
-                    <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider">Safety Alert</span>
-                    <span className="text-[9px] text-dark-text-secondary/50">Auto on detection</span>
+                    <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider">
+                      Safety Alert
+                    </span>
+                    <span className="text-[9px] text-dark-text-secondary/50">
+                      Auto on detection
+                    </span>
                   </div>
                   <button
                     onClick={() => handleSendEmail("alert", true)}
@@ -800,10 +937,12 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
                     <span className="text-xs font-medium">Send Test Alert</span>
                   </button>
                 </div>
-                
+
                 {/* Daily */}
                 <div>
-                  <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider px-1 block mb-1.5">Daily Summary</span>
+                  <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider px-1 block mb-1.5">
+                    Daily Summary
+                  </span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleSendEmail("daily", true)}
@@ -815,7 +954,9 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
                       ) : (
                         <TestTube className="w-3 h-3 text-dark-text-secondary" />
                       )}
-                      <span className="text-xs text-dark-text-secondary">Dummy</span>
+                      <span className="text-xs text-dark-text-secondary">
+                        Dummy
+                      </span>
                     </button>
                     <button
                       onClick={() => handleSendEmail("daily", false)}
@@ -831,10 +972,12 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Weekly */}
                 <div>
-                  <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider px-1 block mb-1.5">Weekly Report</span>
+                  <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider px-1 block mb-1.5">
+                    Weekly Report
+                  </span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleSendEmail("weekly", true)}
@@ -846,7 +989,9 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
                       ) : (
                         <TestTube className="w-3 h-3 text-dark-text-secondary" />
                       )}
-                      <span className="text-xs text-dark-text-secondary">Dummy</span>
+                      <span className="text-xs text-dark-text-secondary">
+                        Dummy
+                      </span>
                     </button>
                     <button
                       onClick={() => handleSendEmail("weekly", false)}
@@ -867,19 +1012,49 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
           </div>
         )}
 
+        {/* Alert Toast Notification */}
+        {alertNotification?.show && (
+          <div className="absolute bottom-16 right-0 mb-2 animate-alertToast">
+            <div className="bg-red-600 text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 whitespace-nowrap">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium">
+                {alertNotification.message}
+              </span>
+            </div>
+            {/* Arrow pointing down to FAB */}
+            <div className="absolute -bottom-1.5 right-5 w-3 h-3 bg-red-600 rotate-45"></div>
+          </div>
+        )}
+
         {/* Floating Action Button */}
         <button
-          onClick={() => setIsMailDropdownOpen(!isMailDropdownOpen)}
-          className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
-            isMailDropdownOpen 
-              ? "bg-brand-gold text-brand-charcoal rotate-45" 
+          onClick={() => {
+            setIsMailDropdownOpen(!isMailDropdownOpen);
+            // Clear notification when clicking the FAB
+            if (alertNotification?.show) {
+              setAlertNotification(null);
+            }
+          }}
+          className={`relative w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+            isMailDropdownOpen
+              ? "bg-brand-gold text-brand-charcoal rotate-45"
+              : alertNotification?.show
+              ? "bg-red-600 text-white border-2 border-red-400 animate-pulse"
               : "bg-dark-surface border border-dark-border text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold"
           }`}
         >
           {isMailDropdownOpen ? (
             <span className="text-xl font-light">+</span>
           ) : (
-            <Mail className="w-5 h-5" />
+            <>
+              <Mail className="w-5 h-5" />
+              {/* Red notification dot */}
+              {alertNotification?.show && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
+                  <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping-slow"></span>
+                </span>
+              )}
+            </>
           )}
         </button>
       </div>
@@ -910,6 +1085,36 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
         }
         .animate-fadeIn {
           animation: fadeIn 0.2s ease-out forwards;
+        }
+        @keyframes alertToast {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+        .animate-alertToast {
+          animation: alertToast 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes ping-slow {
+          0% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.3);
+            opacity: 0.7;
+          }
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        .animate-ping-slow {
+          animation: ping-slow 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
       `}</style>
     </div>

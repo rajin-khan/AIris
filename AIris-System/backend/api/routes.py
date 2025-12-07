@@ -802,3 +802,50 @@ async def get_guardian_email():
         "sender_configured": bool(os.environ.get("EMAIL_SENDER")) and bool(os.environ.get("EMAIL_PASSWORD"))
     }
 
+
+# ===================== RISK THRESHOLD ENDPOINTS =====================
+
+class RiskThresholdUpdate(BaseModel):
+    threshold: float
+
+
+@router.get("/email/risk-threshold")
+async def get_risk_threshold():
+    """Get current risk threshold for alerts"""
+    email_service = get_email_service()
+    
+    return {
+        "threshold": email_service.risk_threshold,
+        "min": email_service.MIN_RISK_THRESHOLD,
+        "max": email_service.MAX_RISK_THRESHOLD,
+        "description": {
+            "0.1": "Maximum Sensitivity - Alert on any detected concern",
+            "0.2": "Very Sensitive - Alert on minor concerns",
+            "0.3": "Balanced (Default) - Alert on moderate concerns",
+            "0.4": "Conservative - Only notable concerns",
+            "0.5": "Low Sensitivity - Only significant concerns trigger alerts"
+        }
+    }
+
+
+@router.post("/email/risk-threshold")
+async def set_risk_threshold(update: RiskThresholdUpdate):
+    """Set risk threshold for alerts (0.4 - 0.8)"""
+    email_service = get_email_service()
+    
+    threshold = update.threshold
+    
+    # Clamp to valid range
+    if threshold < email_service.MIN_RISK_THRESHOLD:
+        threshold = email_service.MIN_RISK_THRESHOLD
+    elif threshold > email_service.MAX_RISK_THRESHOLD:
+        threshold = email_service.MAX_RISK_THRESHOLD
+    
+    email_service.set_risk_threshold(threshold)
+    
+    return {
+        "status": "success",
+        "threshold": email_service.risk_threshold,
+        "message": f"Risk threshold set to {threshold:.2f}"
+    }
+

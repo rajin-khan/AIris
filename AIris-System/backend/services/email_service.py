@@ -61,12 +61,32 @@ class EmailService:
         self.last_alert_time: Optional[datetime] = None
         self.alert_cooldown_minutes: int = 5
         
+        # Risk threshold (0.1 - 0.5, default 0.3)
+        self.risk_threshold: float = 0.3
+        self.MIN_RISK_THRESHOLD: float = 0.1
+        self.MAX_RISK_THRESHOLD: float = 0.5
+        
         self.daily_events: List[ActivityEvent] = []
         self.weekly_events: List[ActivityEvent] = []
         self.location_history: List[Dict[str, Any]] = []
         self.hourly_activity: Dict[int, int] = defaultdict(int)
         
         self._load_config()
+    
+    def set_risk_threshold(self, threshold: float) -> bool:
+        """Set the risk threshold for alerts (0.4 - 0.8)"""
+        if threshold < self.MIN_RISK_THRESHOLD:
+            threshold = self.MIN_RISK_THRESHOLD
+        elif threshold > self.MAX_RISK_THRESHOLD:
+            threshold = self.MAX_RISK_THRESHOLD
+        
+        self.risk_threshold = threshold
+        print(f"✓ Risk threshold set to: {threshold}")
+        return True
+    
+    def get_risk_threshold(self) -> float:
+        """Get the current risk threshold"""
+        return self.risk_threshold
     
     def _load_config(self):
         """Load email configuration from environment variables"""
@@ -270,10 +290,17 @@ class EmailService:
         self,
         summary: str,
         raw_descriptions: List[str],
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
+        risk_score: float = 0.7,
+        risk_factors: List[str] = None,
+        is_fall: bool = False
     ) -> bool:
-        """Send an immediate safety alert email"""
-        if not self._can_send_alert():
+        """Send an immediate safety alert email with risk score"""
+        if risk_factors is None:
+            risk_factors = []
+        
+        # For falls, bypass cooldown
+        if not is_fall and not self._can_send_alert():
             remaining = self.alert_cooldown_minutes - (
                 (datetime.now() - self.last_alert_time).total_seconds() / 60
             )
@@ -296,12 +323,45 @@ class EmailService:
         self.daily_events.append(event)
         self.weekly_events.append(event)
         
-        subject = f"AIris Alert — {location.title()}"
+        # Determine severity level
+        if risk_score >= 0.8 or is_fall:
+            severity = "CRITICAL"
+            severity_color = COLORS['danger']
+        elif risk_score >= 0.6:
+            severity = "HIGH"
+            severity_color = COLORS['danger_light']
+        else:
+            severity = "MODERATE"
+            severity_color = COLORS['gold']
+        
+        subject = f"AIris {severity} Alert — {location.title()}"
+        if is_fall:
+            subject = f"AIris FALL Alert — {location.title()}"
+        
+        # Risk factors HTML
+        risk_factors_html = ""
+        if risk_factors:
+            factors_list = "".join(
+                f'<li style="color: {COLORS["text_secondary"]}; margin-bottom: 4px; font-size: 12px;">{factor}</li>'
+                for factor in risk_factors[:5]
+            )
+            risk_factors_html = f"""
+            <div class="section">
+                <h3 class="section-title">Risk Factors</h3>
+                <ul style="margin: 0; padding-left: 18px;">
+                    {factors_list}
+                </ul>
+            </div>
+            """
         
         observations_html = "".join(
             f'<li style="color: {COLORS["text_secondary"]}; margin-bottom: 6px; font-size: 13px;">{desc}</li>'
             for desc in raw_descriptions[:5]
         )
+        
+        # Risk score visual
+        risk_pct = int(risk_score * 100)
+        risk_bar_color = COLORS['danger'] if risk_score >= 0.7 else (COLORS['gold'] if risk_score >= 0.5 else COLORS['success'])
         
         html_content = f"""
 <!DOCTYPE html>
@@ -315,14 +375,28 @@ class EmailService:
     <div class="container">
         <div class="header">
             <h1 class="logo">A<span>IRIS</span></h1>
-            <p class="header-subtitle">Safety Alert</p>
+            <p class="header-subtitle">{"Fall Alert" if is_fall else "Safety Alert"}</p>
         </div>
         
         <div class="content">
             <!-- Alert Banner -->
-            <div style="background: {COLORS['danger']}15; border: 1px solid {COLORS['danger']}40; border-left: 3px solid {COLORS['danger']}; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
-                <div style="font-size: 12px; color: {COLORS['danger_light']}; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Immediate Attention Required</div>
-                <div style="font-size: 14px; color: {COLORS['text_primary']};">{summary}</div>
+            <div style="background: {severity_color}15; border: 1px solid {severity_color}40; border-left: 3px solid {severity_color}; border-radius: 6px; padding: 16px; margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 11px; color: {severity_color}; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600;">{severity} {"— FALL DETECTED" if is_fall else ""}</span>
+                    <span style="font-size: 11px; color: {COLORS['text_muted']};">Risk Score: {risk_pct}%</span>
+                </div>
+                <div style="font-size: 14px; color: {COLORS['text_primary']}; line-height: 1.5;">{summary}</div>
+            </div>
+            
+            <!-- Risk Score Bar -->
+            <div style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 11px; color: {COLORS['text_muted']}; text-transform: uppercase; letter-spacing: 0.05em;">Risk Level</span>
+                    <span style="font-size: 12px; color: {COLORS['text_primary']}; font-weight: 500;">{risk_pct}%</span>
+                </div>
+                <div style="background: {COLORS['border']}; border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div style="background: {risk_bar_color}; height: 100%; width: {risk_pct}%; transition: width 0.3s;"></div>
+                </div>
             </div>
             
             <!-- Details -->
@@ -355,6 +429,8 @@ class EmailService:
                 </table>
             </div>
             
+            {risk_factors_html}
+            
             <!-- Observations -->
             <div class="section">
                 <h3 class="section-title">Scene Observations</h3>
@@ -373,13 +449,18 @@ class EmailService:
 """
         
         plain_content = f"""
-AIRIS — Safety Alert
+AIRIS — {severity} Alert {"(FALL DETECTED)" if is_fall else ""}
+
+Risk Score: {risk_pct}%
 
 {summary}
 
 Location: {location.title()}
 Time: {timestamp.strftime('%I:%M %p')}
 Date: {timestamp.strftime('%B %d, %Y')}
+
+Risk Factors:
+{chr(10).join(f'• {factor}' for factor in risk_factors[:5]) if risk_factors else '• None identified'}
 
 Scene Observations:
 {chr(10).join(f'• {desc}' for desc in raw_descriptions[:5])}
@@ -393,7 +474,103 @@ Please check on your loved one when possible.
             self.last_alert_time = datetime.now()
         return success
     
-    def add_observation(self, summary: str, descriptions: List[str], timestamp: Optional[datetime] = None):
+    async def send_fall_alert(self, timestamp: Optional[datetime] = None) -> bool:
+        """Send a simple fall alert email - no extra details, just the alert"""
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        self.hourly_activity[timestamp.hour] += 1
+        
+        # Simple event for tracking
+        event = ActivityEvent(
+            timestamp=timestamp,
+            event_type="FALL_ALERT",
+            summary="Possible fall or collision detected",
+            location="unknown",
+            descriptions=[]
+        )
+        self.daily_events.append(event)
+        self.weekly_events.append(event)
+        
+        subject = "AIris FALL Alert"
+        
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>{self._get_base_styles()}</style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">A<span>IRIS</span></h1>
+            <p class="header-subtitle">Fall Alert</p>
+        </div>
+        
+        <div class="content">
+            <!-- Alert Banner -->
+            <div style="background: {COLORS['danger']}20; border: 2px solid {COLORS['danger']}; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                <div style="font-size: 14px; color: {COLORS['danger']}; text-transform: uppercase; letter-spacing: 0.15em; font-weight: 600; margin-bottom: 8px;">⚠️ URGENT</div>
+                <div style="font-family: Georgia, serif; font-size: 22px; color: {COLORS['text_primary']}; margin-bottom: 8px;">Possible Fall or Collision Detected</div>
+                <div style="font-size: 13px; color: {COLORS['text_secondary']};">Please check on your loved one immediately.</div>
+            </div>
+            
+            <!-- Time -->
+            <div style="text-align: center; padding: 16px; background: {COLORS['surface_light']}; border-radius: 8px;">
+                <div style="font-size: 11px; color: {COLORS['text_muted']}; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px;">Detected At</div>
+                <div style="font-size: 18px; color: {COLORS['text_primary']}; font-family: Georgia, serif;">{timestamp.strftime('%I:%M %p')}</div>
+                <div style="font-size: 12px; color: {COLORS['text_secondary']}; margin-top: 2px;">{timestamp.strftime('%B %d, %Y')}</div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Please check on your loved one as soon as possible.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+        plain_content = f"""
+AIRIS — FALL ALERT
+
+⚠️ URGENT: Possible Fall or Collision Detected
+
+Please check on your loved one immediately.
+
+Time: {timestamp.strftime('%I:%M %p')}
+Date: {timestamp.strftime('%B %d, %Y')}
+
+—
+Please check on your loved one as soon as possible.
+"""
+        
+        success = await self._send_email(subject, html_content, plain_content)
+        if success:
+            self.last_alert_time = datetime.now()
+        return success
+    
+    def add_fall_event(self, timestamp: Optional[datetime] = None):
+        """Add a simple fall event to tracking for daily/weekly summaries"""
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        self.hourly_activity[timestamp.hour] += 1
+        
+        event = ActivityEvent(
+            timestamp=timestamp,
+            event_type="FALL_ALERT",
+            summary="Possible fall or collision detected",
+            location="unknown",
+            descriptions=[]
+        )
+        self.daily_events.append(event)
+        self.weekly_events.append(event)
+    
+    def add_observation(self, summary: str, descriptions: List[str], timestamp: Optional[datetime] = None, 
+                        risk_score: float = 0.0):
         """Add a regular observation to tracking"""
         if timestamp is None:
             timestamp = datetime.now()
@@ -411,14 +588,121 @@ Please check on your loved one when possible.
         self.daily_events.append(event)
         self.weekly_events.append(event)
         
-        self.location_history.append({"time": timestamp, "location": location})
+        self.location_history.append({
+            "time": timestamp, 
+            "location": location,
+            "risk_score": risk_score
+        })
+    
+    def add_fall_event(self, timestamp: Optional[datetime] = None):
+        """Add a fall event to tracking for daily/weekly summaries"""
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        self.hourly_activity[timestamp.hour] += 1
+        
+        event = ActivityEvent(
+            timestamp=timestamp,
+            event_type="FALL_ALERT",
+            summary="Possible fall or collision detected",
+            location="unknown",
+            descriptions=[]
+        )
+        self.daily_events.append(event)
+        self.weekly_events.append(event)
+    
+    async def send_fall_alert(self, timestamp: Optional[datetime] = None) -> bool:
+        """Send a simple fall alert email - no extra details"""
+        if timestamp is None:
+            timestamp = datetime.now()
+        
+        # Track the event
+        self.add_fall_event(timestamp)
+        
+        subject = "AIris FALL Alert"
+        
+        html_content = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>{self._get_base_styles()}</style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="logo">A<span>IRIS</span></h1>
+            <p class="header-subtitle">Fall Alert</p>
+        </div>
+        
+        <div class="content">
+            <!-- Alert Banner -->
+            <div style="background: {COLORS['danger']}20; border: 2px solid {COLORS['danger']}; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+                <div style="font-family: Georgia, serif; font-size: 24px; color: {COLORS['danger']}; margin-bottom: 8px;">
+                    Possible Fall or Collision
+                </div>
+                <div style="font-size: 14px; color: {COLORS['text_secondary']};">
+                    The camera detected a sudden change that may indicate a fall.
+                </div>
+            </div>
+            
+            <!-- Time Info -->
+            <div class="section">
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 12px 0; border-bottom: 1px solid {COLORS['border']};">
+                            <span style="font-size: 13px; color: {COLORS['text_muted']};">Time Detected</span>
+                        </td>
+                        <td style="padding: 12px 0; border-bottom: 1px solid {COLORS['border']}; text-align: right;">
+                            <span style="font-size: 14px; color: {COLORS['text_primary']}; font-weight: 500;">{timestamp.strftime('%I:%M %p')}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 12px 0;">
+                            <span style="font-size: 13px; color: {COLORS['text_muted']};">Date</span>
+                        </td>
+                        <td style="padding: 12px 0; text-align: right;">
+                            <span style="font-size: 14px; color: {COLORS['text_primary']};">{timestamp.strftime('%B %d, %Y')}</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Please check on your loved one immediately.</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+        plain_content = f"""
+AIRIS — FALL ALERT
+
+Possible Fall or Collision Detected
+
+The camera detected a sudden change that may indicate a fall.
+
+Time: {timestamp.strftime('%I:%M %p')}
+Date: {timestamp.strftime('%B %d, %Y')}
+
+Please check on your loved one immediately.
+"""
+        
+        success = await self._send_email(subject, html_content, plain_content)
+        if success:
+            self.last_alert_time = datetime.now()
+        return success
     
     async def send_daily_summary(self, force: bool = False) -> bool:
         """Send daily summary email"""
         today = datetime.now()
         yesterday = today - timedelta(days=1)
         
-        alert_count = sum(1 for e in self.daily_events if e.event_type == "SAFETY_ALERT")
+        alert_count = sum(1 for e in self.daily_events if e.event_type in ["SAFETY_ALERT", "FALL_ALERT"])
+        fall_count = sum(1 for e in self.daily_events if e.event_type == "FALL_ALERT")
         observation_count = sum(1 for e in self.daily_events if e.event_type == "OBSERVATION")
         total_events = len(self.daily_events)
         
@@ -489,7 +773,17 @@ Please check on your loved one when possible.
             for event in sorted(self.daily_events, key=lambda x: x.timestamp, reverse=True)[:8]:
                 event_time = event.timestamp.strftime('%I:%M %p')
                 
-                if event.event_type == "SAFETY_ALERT":
+                if event.event_type == "FALL_ALERT":
+                    events_html += f"""
+                    <div style="background: {COLORS['danger']}15; border-left: 3px solid {COLORS['danger']}; padding: 12px 14px; margin-bottom: 8px; border-radius: 0 6px 6px 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span style="font-size: 10px; color: {COLORS['danger']}; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600;">Fall Alert</span>
+                            <span style="font-size: 11px; color: {COLORS['text_muted']};">{event_time}</span>
+                        </div>
+                        <div style="font-size: 13px; color: {COLORS['text_primary']};">Possible fall or collision detected</div>
+                    </div>
+                    """
+                elif event.event_type == "SAFETY_ALERT":
                     events_html += f"""
                     <div style="background: {COLORS['danger']}10; border-left: 2px solid {COLORS['danger']}; padding: 12px 14px; margin-bottom: 8px; border-radius: 0 6px 6px 0;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
@@ -603,7 +897,8 @@ AIris Vision Assistant
         today = datetime.now()
         week_start = today - timedelta(days=7)
         
-        alert_count = sum(1 for e in self.weekly_events if e.event_type == "SAFETY_ALERT")
+        alert_count = sum(1 for e in self.weekly_events if e.event_type in ["SAFETY_ALERT", "FALL_ALERT"])
+        fall_count = sum(1 for e in self.weekly_events if e.event_type == "FALL_ALERT")
         observation_count = sum(1 for e in self.weekly_events if e.event_type == "OBSERVATION")
         total_events = len(self.weekly_events)
         daily_avg = total_events / 7 if total_events > 0 else 0
@@ -614,10 +909,10 @@ AIris Vision Assistant
                 location_counts[event.location] += 1
         top_locations = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)[:5]
         
-        # Alerts by day
+        # Alerts by day (including falls)
         alerts_by_day = defaultdict(list)
         for event in self.weekly_events:
-            if event.event_type == "SAFETY_ALERT":
+            if event.event_type in ["SAFETY_ALERT", "FALL_ALERT"]:
                 day_name = event.timestamp.strftime('%A')
                 alerts_by_day[day_name].append(event)
         
