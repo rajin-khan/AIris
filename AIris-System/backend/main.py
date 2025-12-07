@@ -9,12 +9,16 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
 import os
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from api.routes import router, set_global_services
 from services.camera_service import CameraService
 from services.model_service import ModelService
+from services.email_service import get_email_service
 
 # Load .env file - try multiple locations
 backend_dir = Path(__file__).parent
@@ -49,6 +53,28 @@ else:
 # Global services
 camera_service = CameraService()
 model_service = ModelService()
+scheduler = AsyncIOScheduler()
+
+
+async def send_daily_summary_job():
+    """Scheduled job to send daily summary email"""
+    print("📧 Running scheduled daily summary...")
+    email_service = get_email_service()
+    if email_service.is_configured():
+        await email_service.send_daily_summary()
+    else:
+        print("⚠️  Email not configured - skipping daily summary")
+
+
+async def send_weekly_summary_job():
+    """Scheduled job to send weekly report email"""
+    print("📧 Running scheduled weekly report...")
+    email_service = get_email_service()
+    if email_service.is_configured():
+        await email_service.send_weekly_report()
+    else:
+        print("⚠️  Email not configured - skipping weekly report")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -58,9 +84,48 @@ async def lifespan(app: FastAPI):
     await model_service.initialize()
     # Set global services in routes module
     set_global_services(camera_service, model_service)
+    
+    # Initialize email service
+    email_service = get_email_service()
+    
+    # Setup email scheduler
+    daily_hour = int(os.environ.get("EMAIL_DAILY_HOUR", "3"))  # Default 3 AM
+    weekly_day = os.environ.get("EMAIL_WEEKLY_DAY", "friday").lower()
+    weekly_hour = int(os.environ.get("EMAIL_WEEKLY_HOUR", "0"))  # Default midnight
+    
+    # Map day names to APScheduler format
+    day_map = {
+        "monday": "mon", "tuesday": "tue", "wednesday": "wed",
+        "thursday": "thu", "friday": "fri", "saturday": "sat", "sunday": "sun"
+    }
+    weekly_day_short = day_map.get(weekly_day, "fri")
+    
+    # Add daily summary job (runs every day at specified hour)
+    scheduler.add_job(
+        send_daily_summary_job,
+        CronTrigger(hour=daily_hour, minute=0),
+        id="daily_summary",
+        replace_existing=True
+    )
+    
+    # Add weekly report job (runs on specified day at specified hour)
+    scheduler.add_job(
+        send_weekly_summary_job,
+        CronTrigger(day_of_week=weekly_day_short, hour=weekly_hour, minute=0),
+        id="weekly_report",
+        replace_existing=True
+    )
+    
+    scheduler.start()
+    print(f"📧 Email scheduler started:")
+    print(f"   • Daily summary: Every day at {daily_hour}:00")
+    print(f"   • Weekly report: Every {weekly_day.capitalize()} at {weekly_hour}:00")
+    
     yield
+    
     # Shutdown
     print("Shutting down AIris backend...")
+    scheduler.shutdown(wait=False)
     await camera_service.cleanup()
     await model_service.cleanup()
 

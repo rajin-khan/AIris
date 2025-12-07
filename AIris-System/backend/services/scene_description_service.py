@@ -7,6 +7,7 @@ import numpy as np
 import time
 import json
 import os
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from PIL import Image
@@ -14,6 +15,7 @@ import torch
 from groq import Groq
 
 from services.model_service import ModelService
+from services.email_service import get_email_service
 from utils.frame_utils import draw_guidance_on_frame, load_font
 
 class SceneDescriptionService:
@@ -271,6 +273,11 @@ class SceneDescriptionService:
                     
                     if is_harmful:
                         self.alerts_count += 1
+                        # Send email alert in background (non-blocking)
+                        asyncio.create_task(self._send_safety_alert_email(summary, descriptions))
+                    else:
+                        # Track non-alert observations for daily summary
+                        self._track_observation(summary, descriptions)
                     
                     # Log entry
                     log_entry = {
@@ -348,6 +355,31 @@ class SceneDescriptionService:
         """Draw text on frame using PIL for better quality"""
         custom_font = load_font(self.FONT_PATH, size=20)
         return draw_guidance_on_frame(frame, text, custom_font)
+    
+    async def _send_safety_alert_email(self, summary: str, descriptions: List[str]):
+        """Send safety alert email in background"""
+        try:
+            email_service = get_email_service()
+            if email_service.is_configured():
+                await email_service.send_safety_alert(
+                    summary=summary,
+                    raw_descriptions=descriptions,
+                    timestamp=datetime.now()
+                )
+        except Exception as e:
+            print(f"⚠️  Failed to send safety alert email: {e}")
+    
+    def _track_observation(self, summary: str, descriptions: List[str]):
+        """Track regular observation for daily/weekly summaries"""
+        try:
+            email_service = get_email_service()
+            email_service.add_observation(
+                summary=summary,
+                descriptions=descriptions,
+                timestamp=datetime.now()
+            )
+        except Exception as e:
+            print(f"⚠️  Failed to track observation: {e}")
     
     def get_logs(self) -> List[Dict[str, Any]]:
         """Get all recording logs"""

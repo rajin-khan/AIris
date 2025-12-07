@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 import time
 import asyncio
+import os
 from io import BytesIO
 
 from services.camera_service import CameraService
@@ -20,6 +21,7 @@ from services.activity_guide_service import ActivityGuideService
 from services.scene_description_service import SceneDescriptionService
 from services.tts_service import TTSService
 from services.stt_service import STTService
+from services.email_service import get_email_service
 from models.schemas import (
     TaskRequest, TaskResponse, GuidanceResponse, 
     SceneDescriptionRequest, SceneDescriptionResponse,
@@ -479,4 +481,324 @@ async def transcribe_audio_base64(request: Dict[str, Any]):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== Email Notification Endpoints ====================
+
+@router.get("/email/status")
+async def get_email_status():
+    """Get email service configuration status"""
+    email_service = get_email_service()
+    return {
+        "configured": email_service.is_configured(),
+        "sender": email_service.config.sender_email if email_service.config else None,
+        "recipient": email_service.config.recipient_email if email_service.config else None,
+        "cooldown_minutes": email_service.alert_cooldown_minutes,
+        "pending_events": len(email_service.daily_events)
+    }
+
+@router.post("/email/test")
+async def send_test_email():
+    """Send a test email to verify configuration"""
+    email_service = get_email_service()
+    
+    if not email_service.is_configured():
+        raise HTTPException(
+            status_code=400, 
+            detail="Email not configured. Please set EMAIL_SENDER, EMAIL_PASSWORD, and EMAIL_RECIPIENT in .env"
+        )
+    
+    print(f"📧 Sending test email to: {email_service.config.recipient_email}")
+    
+    try:
+        success = await email_service.send_test_email()
+        
+        if success:
+            return {"status": "success", "message": "Test email sent successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to send test email - check server logs")
+    except Exception as e:
+        print(f"❌ Test email error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send test email: {str(e)}")
+
+@router.post("/email/test-alert")
+async def send_test_alert_email():
+    """Send a dummy safety alert email for testing"""
+    email_service = get_email_service()
+    
+    if not email_service.is_configured():
+        raise HTTPException(status_code=400, detail="Email not configured")
+    
+    # Dummy alert data
+    from datetime import datetime
+    success = await email_service.send_safety_alert(
+        summary="Person appears to have fallen near the kitchen counter. They are lying on the floor and have not moved for several seconds.",
+        raw_descriptions=[
+            "a person lying on the kitchen floor",
+            "kitchen with counter and stove visible",
+            "a knocked over chair nearby",
+            "person not moving",
+            "arms extended on the ground"
+        ],
+        timestamp=datetime.now()
+    )
+    
+    # Reset cooldown for testing purposes
+    email_service.last_alert_time = None
+    
+    if success:
+        return {"status": "success", "message": "Test alert email sent"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send test alert email")
+
+@router.post("/email/test-daily")
+async def send_test_daily_email():
+    """Send a dummy daily summary email for testing"""
+    email_service = get_email_service()
+    
+    if not email_service.is_configured():
+        raise HTTPException(status_code=400, detail="Email not configured")
+    
+    from datetime import datetime, timedelta
+    from services.email_service import ActivityEvent
+    
+    # Store original events
+    original_daily = email_service.daily_events.copy()
+    original_hourly = dict(email_service.hourly_activity)
+    
+    # Create dummy events
+    now = datetime.now()
+    dummy_events = [
+        ActivityEvent(
+            timestamp=now.replace(hour=8, minute=15),
+            event_type="OBSERVATION",
+            summary="Person preparing breakfast in the kitchen, moving around the counter area.",
+            location="kitchen",
+            descriptions=["person standing at counter", "kitchen appliances visible"]
+        ),
+        ActivityEvent(
+            timestamp=now.replace(hour=10, minute=30),
+            event_type="OBSERVATION",
+            summary="Person seated on the couch watching television in the living room.",
+            location="living room",
+            descriptions=["person sitting on couch", "television on", "living room"]
+        ),
+        ActivityEvent(
+            timestamp=now.replace(hour=12, minute=45),
+            event_type="OBSERVATION",
+            summary="Person eating lunch at the dining table.",
+            location="dining room",
+            descriptions=["person at table", "eating meal", "dining area"]
+        ),
+        ActivityEvent(
+            timestamp=now.replace(hour=14, minute=20),
+            event_type="SAFETY_ALERT",
+            summary="Person stumbled near the stairs but regained balance. No fall occurred.",
+            location="stairs",
+            descriptions=["person near stairs", "grabbed railing", "regained balance"]
+        ),
+        ActivityEvent(
+            timestamp=now.replace(hour=16, minute=0),
+            event_type="OBSERVATION",
+            summary="Person resting in the bedroom.",
+            location="bedroom",
+            descriptions=["person lying on bed", "bedroom visible", "resting"]
+        ),
+        ActivityEvent(
+            timestamp=now.replace(hour=18, minute=30),
+            event_type="OBSERVATION",
+            summary="Person preparing dinner in the kitchen.",
+            location="kitchen",
+            descriptions=["person at stove", "cooking", "kitchen"]
+        ),
+    ]
+    
+    # Set dummy data
+    email_service.daily_events = dummy_events
+    email_service.hourly_activity = {8: 2, 10: 1, 12: 1, 14: 1, 16: 1, 18: 2}
+    
+    # Send email
+    success = await email_service.send_daily_summary(force=True)
+    
+    # Restore original events
+    email_service.daily_events = original_daily
+    email_service.hourly_activity = original_hourly
+    
+    if success:
+        return {"status": "success", "message": "Test daily summary email sent"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send test daily summary email")
+
+@router.post("/email/test-weekly")
+async def send_test_weekly_email():
+    """Send a dummy weekly report email for testing"""
+    email_service = get_email_service()
+    
+    if not email_service.is_configured():
+        raise HTTPException(status_code=400, detail="Email not configured")
+    
+    from datetime import datetime, timedelta
+    from services.email_service import ActivityEvent
+    
+    # Store original events
+    original_weekly = email_service.weekly_events.copy()
+    
+    # Create dummy events for a week
+    now = datetime.now()
+    dummy_events = []
+    
+    # Monday - normal day
+    monday = now - timedelta(days=6)
+    dummy_events.extend([
+        ActivityEvent(timestamp=monday.replace(hour=9), event_type="OBSERVATION", summary="Morning routine in kitchen", location="kitchen", descriptions=[]),
+        ActivityEvent(timestamp=monday.replace(hour=14), event_type="OBSERVATION", summary="Afternoon in living room", location="living room", descriptions=[]),
+        ActivityEvent(timestamp=monday.replace(hour=19), event_type="OBSERVATION", summary="Evening dinner preparation", location="kitchen", descriptions=[]),
+    ])
+    
+    # Tuesday - alert day
+    tuesday = now - timedelta(days=5)
+    dummy_events.extend([
+        ActivityEvent(timestamp=tuesday.replace(hour=8), event_type="OBSERVATION", summary="Breakfast in kitchen", location="kitchen", descriptions=[]),
+        ActivityEvent(timestamp=tuesday.replace(hour=11), event_type="SAFETY_ALERT", summary="Person slipped in bathroom but caught themselves on the sink.", location="bathroom", descriptions=["person in bathroom", "slipped", "grabbed sink"]),
+        ActivityEvent(timestamp=tuesday.replace(hour=16), event_type="OBSERVATION", summary="Reading in bedroom", location="bedroom", descriptions=[]),
+    ])
+    
+    # Wednesday - normal day
+    wednesday = now - timedelta(days=4)
+    dummy_events.extend([
+        ActivityEvent(timestamp=wednesday.replace(hour=10), event_type="OBSERVATION", summary="Morning activities in living room", location="living room", descriptions=[]),
+        ActivityEvent(timestamp=wednesday.replace(hour=13), event_type="OBSERVATION", summary="Lunch in dining room", location="dining room", descriptions=[]),
+        ActivityEvent(timestamp=wednesday.replace(hour=20), event_type="OBSERVATION", summary="Evening relaxation", location="living room", descriptions=[]),
+    ])
+    
+    # Thursday - normal day
+    thursday = now - timedelta(days=3)
+    dummy_events.extend([
+        ActivityEvent(timestamp=thursday.replace(hour=7), event_type="OBSERVATION", summary="Early morning in kitchen", location="kitchen", descriptions=[]),
+        ActivityEvent(timestamp=thursday.replace(hour=15), event_type="OBSERVATION", summary="Afternoon nap in bedroom", location="bedroom", descriptions=[]),
+    ])
+    
+    # Friday - alert day
+    friday = now - timedelta(days=2)
+    dummy_events.extend([
+        ActivityEvent(timestamp=friday.replace(hour=12), event_type="OBSERVATION", summary="Midday activities", location="kitchen", descriptions=[]),
+        ActivityEvent(timestamp=friday.replace(hour=17), event_type="SAFETY_ALERT", summary="Smoke detected from kitchen - burnt toast, no fire.", location="kitchen", descriptions=["smoke visible", "kitchen", "toaster"]),
+    ])
+    
+    # Saturday & Sunday - normal
+    saturday = now - timedelta(days=1)
+    dummy_events.extend([
+        ActivityEvent(timestamp=saturday.replace(hour=10), event_type="OBSERVATION", summary="Weekend morning routine", location="kitchen", descriptions=[]),
+        ActivityEvent(timestamp=saturday.replace(hour=14), event_type="OBSERVATION", summary="Afternoon in living room", location="living room", descriptions=[]),
+        ActivityEvent(timestamp=now.replace(hour=9), event_type="OBSERVATION", summary="Sunday morning", location="bedroom", descriptions=[]),
+    ])
+    
+    # Set dummy data
+    email_service.weekly_events = dummy_events
+    
+    # Send email
+    success = await email_service.send_weekly_report()
+    
+    # Restore original events
+    email_service.weekly_events = original_weekly
+    
+    if success:
+        return {"status": "success", "message": "Test weekly report email sent"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send test weekly report email")
+
+@router.post("/email/send-daily-summary")
+async def trigger_daily_summary():
+    """Manually trigger sending a daily summary email"""
+    email_service = get_email_service()
+    
+    if not email_service.is_configured():
+        raise HTTPException(status_code=400, detail="Email not configured")
+    
+    success = await email_service.send_daily_summary(force=True)
+    
+    if success:
+        return {"status": "success", "message": "Daily summary sent"}
+    else:
+        return {"status": "error", "message": "Failed to send daily summary"}
+
+@router.post("/email/send-weekly-report")
+async def trigger_weekly_report():
+    """Manually trigger sending a weekly report email"""
+    email_service = get_email_service()
+    
+    if not email_service.is_configured():
+        raise HTTPException(status_code=400, detail="Email not configured")
+    
+    success = await email_service.send_weekly_report()
+    
+    if success:
+        return {"status": "success", "message": "Weekly report sent"}
+    else:
+        return {"status": "error", "message": "Failed to send weekly report"}
+
+class EmailConfigUpdate(BaseModel):
+    recipient_email: Optional[str] = None
+    cooldown_minutes: Optional[int] = None
+
+class GuardianSetupRequest(BaseModel):
+    email: str
+    name: Optional[str] = "Guardian"
+
+@router.post("/email/config")
+async def update_email_config(config: EmailConfigUpdate):
+    """Update email configuration (recipient, cooldown)"""
+    email_service = get_email_service()
+    
+    if config.recipient_email:
+        email_service.set_recipient(config.recipient_email)
+    
+    if config.cooldown_minutes is not None:
+        email_service.alert_cooldown_minutes = config.cooldown_minutes
+    
+    return {
+        "status": "success",
+        "recipient": email_service.config.recipient_email if email_service.config else None,
+        "cooldown_minutes": email_service.alert_cooldown_minutes
+    }
+
+@router.post("/email/setup-guardian")
+async def setup_guardian(request: GuardianSetupRequest):
+    """Set up guardian email and send welcome email"""
+    email_service = get_email_service()
+    
+    # Check if sender credentials are configured
+    sender = os.environ.get("EMAIL_SENDER", "")
+    password = os.environ.get("EMAIL_PASSWORD", "")
+    
+    if not sender or not password:
+        raise HTTPException(
+            status_code=400,
+            detail="Email sender not configured. Please set EMAIL_SENDER and EMAIL_PASSWORD in .env"
+        )
+    
+    # Set the recipient
+    email_service.set_recipient(request.email)
+    
+    # Send welcome email
+    success = await email_service.send_welcome_email(request.name)
+    
+    if success:
+        return {
+            "status": "success",
+            "message": f"Guardian email set and welcome email sent to {request.email}",
+            "recipient": request.email
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send welcome email")
+
+@router.get("/email/guardian")
+async def get_guardian_email():
+    """Get current guardian email configuration"""
+    email_service = get_email_service()
+    
+    return {
+        "configured": email_service.is_configured(),
+        "recipient": email_service.config.recipient_email if email_service.config else None,
+        "sender_configured": bool(os.environ.get("EMAIL_SENDER")) and bool(os.environ.get("EMAIL_PASSWORD"))
+    }
 

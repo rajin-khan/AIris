@@ -15,7 +15,6 @@ function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [cameraSource, setCameraSource] = useState<CameraSource>(() => {
-    // Persist camera source preference in localStorage
     const saved = localStorage.getItem('airis-camera-source');
     return (saved === 'esp32' ? 'esp32' : 'local') as CameraSource;
   });
@@ -29,12 +28,10 @@ function App() {
     checkCameraStatus();
   }, []);
 
-  // Persist camera source preference
   useEffect(() => {
     localStorage.setItem('airis-camera-source', cameraSource);
   }, [cameraSource]);
 
-  // Auto-configure webcam when in local mode on initial load
   useEffect(() => {
     if (cameraSource === 'local') {
       apiClient.setCameraConfig('webcam').catch(console.error);
@@ -43,7 +40,6 @@ function App() {
 
   const handleCameraSourceChange = (newSource: CameraSource) => {
     setCameraSource(newSource);
-    // If switching to local, auto-configure webcam
     if (newSource === 'local') {
       apiClient.setCameraConfig('webcam').catch(console.error);
     }
@@ -109,7 +105,7 @@ function App() {
           <button
             onClick={() => setShowSettings(true)}
             title="Camera Settings"
-            className="p-2.5 rounded-xl border-2 transition-all duration-300 border-dark-border bg-dark-surface text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold"
+            className="p-2.5 rounded-xl border-2 border-dark-border bg-dark-surface text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold transition-all duration-300"
           >
             <Settings className="w-5 h-5" />
           </button>

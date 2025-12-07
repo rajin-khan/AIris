@@ -166,5 +166,64 @@ export const apiClient = {
     });
     return response.data;
   },
+
+  // Email endpoints
+  async getEmailStatus(): Promise<{
+    configured: boolean;
+    sender: string | null;
+    recipient: string | null;
+    cooldown_minutes: number;
+    pending_events: number;
+  }> {
+    const response = await client.get('/api/v1/email/status');
+    return response.data;
+  },
+
+  async getGuardianEmail(): Promise<{
+    configured: boolean;
+    recipient: string | null;
+    sender_configured: boolean;
+  }> {
+    const response = await client.get('/api/v1/email/guardian');
+    return response.data;
+  },
+
+  async setupGuardian(email: string, name?: string): Promise<{ status: string; message: string; recipient: string }> {
+    const response = await client.post('/api/v1/email/setup-guardian', {
+      email,
+      name: name || 'Guardian',
+    });
+    return response.data;
+  },
+
+  async sendTestEmail(): Promise<{ status: string; message: string }> {
+    const response = await client.post('/api/v1/email/test');
+    return response.data;
+  },
+
+  async sendTestAlert(): Promise<{ status: string; message: string }> {
+    const response = await client.post('/api/v1/email/test-alert');
+    return response.data;
+  },
+
+  async sendTestDaily(): Promise<{ status: string; message: string }> {
+    const response = await client.post('/api/v1/email/test-daily');
+    return response.data;
+  },
+
+  async sendTestWeekly(): Promise<{ status: string; message: string }> {
+    const response = await client.post('/api/v1/email/test-weekly');
+    return response.data;
+  },
+
+  async sendRealDailySummary(): Promise<{ status: string; message: string }> {
+    const response = await client.post('/api/v1/email/send-daily-summary');
+    return response.data;
+  },
+
+  async sendRealWeeklyReport(): Promise<{ status: string; message: string }> {
+    const response = await client.post('/api/v1/email/send-weekly-report');
+    return response.data;
+  },
 };
 

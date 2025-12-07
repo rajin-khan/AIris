@@ -11,6 +11,9 @@ import {
   Clock,
   Radio,
   ChevronDown,
+  Mail,
+  Send,
+  TestTube,
 } from "lucide-react";
 import { apiClient } from "../services/api";
 
@@ -51,8 +54,14 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   >([]);
   const [filledFrames, setFilledFrames] = useState<number[]>([]);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+  
+  // Email dropdown state
+  const [isMailDropdownOpen, setIsMailDropdownOpen] = useState(false);
+  const [emailSending, setEmailSending] = useState<string | null>(null);
+  const [emailStatus, setEmailStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
   const frameIntervalRef = useRef<number | null>(null);
+  const mailDropdownRef = useRef<HTMLDivElement | null>(null);
   const analysisIntervalRef = useRef<number | null>(null);
   const countdownIntervalRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<number | null>(null);
@@ -65,6 +74,69 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
   useEffect(() => {
     loadLogs();
   }, []);
+
+  // Close mail dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (mailDropdownRef.current && !mailDropdownRef.current.contains(event.target as Node)) {
+        setIsMailDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Clear email status after 3 seconds
+  useEffect(() => {
+    if (emailStatus) {
+      const timer = setTimeout(() => setEmailStatus(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [emailStatus]);
+
+  const handleSendEmail = async (type: string, isDummy: boolean) => {
+    const sendingKey = `${type}-${isDummy ? 'dummy' : 'real'}`;
+    setEmailSending(sendingKey);
+    setEmailStatus(null);
+    
+    try {
+      let result;
+      switch (type) {
+        case "test":
+          result = await apiClient.sendTestEmail();
+          break;
+        case "alert":
+          // Alerts are always "test" since real alerts are triggered automatically by detections
+          result = await apiClient.sendTestAlert();
+          break;
+        case "daily":
+          if (isDummy) {
+            result = await apiClient.sendTestDaily();
+          } else {
+            result = await apiClient.sendRealDailySummary();
+          }
+          break;
+        case "weekly":
+          if (isDummy) {
+            result = await apiClient.sendTestWeekly();
+          } else {
+            result = await apiClient.sendRealWeeklyReport();
+          }
+          break;
+        default:
+          throw new Error("Unknown email type");
+      }
+      
+      setEmailStatus({ type: "success", message: result.message || "Email sent!" });
+    } catch (error: any) {
+      setEmailStatus({ 
+        type: "error", 
+        message: error.response?.data?.detail || "Failed to send email" 
+      });
+    } finally {
+      setEmailSending(null);
+    }
+  };
 
   useEffect(() => {
     if (cameraOn) {
@@ -669,6 +741,149 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
 
       <audio ref={audioRef} />
 
+      {/* Floating Email Actions Button */}
+      <div className="fixed bottom-6 right-6 z-50" ref={mailDropdownRef}>
+        {/* Dropdown Menu - opens upward */}
+        {isMailDropdownOpen && (
+          <div className="absolute bottom-14 right-0 w-64 bg-dark-surface border border-dark-border rounded-xl shadow-2xl overflow-hidden animate-fadeIn">
+            {/* Header */}
+            <div className="px-4 py-3 border-b border-dark-border bg-dark-bg/50">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-brand-gold" />
+                <span className="text-sm font-semibold text-dark-text-primary">Email Actions</span>
+              </div>
+            </div>
+
+            {/* Status Message */}
+            {emailStatus && (
+              <div className={`px-4 py-2 text-xs flex items-center gap-2 ${
+                emailStatus.type === "success" 
+                  ? "bg-green-500/10 text-green-400" 
+                  : "bg-red-500/10 text-red-400"
+              }`}>
+                {emailStatus.type === "success" ? "✓" : "✕"} {emailStatus.message}
+              </div>
+            )}
+            
+            <div className="p-3 space-y-3">
+              {/* Config Test */}
+              <button
+                onClick={() => handleSendEmail("test", false)}
+                disabled={emailSending !== null}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-dark-bg hover:bg-dark-border/50 transition-colors disabled:opacity-50"
+              >
+                <span className="text-sm text-dark-text-primary">Send Config Test</span>
+                {emailSending === "test-real" ? (
+                  <Loader2 className="w-4 h-4 text-brand-gold animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 text-dark-text-secondary" />
+                )}
+              </button>
+              
+              <div className="border-t border-dark-border pt-3 space-y-2">
+                {/* Alert */}
+                <div>
+                  <div className="flex items-center justify-between px-1 mb-1.5">
+                    <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider">Safety Alert</span>
+                    <span className="text-[9px] text-dark-text-secondary/50">Auto on detection</span>
+                  </div>
+                  <button
+                    onClick={() => handleSendEmail("alert", true)}
+                    disabled={emailSending !== null}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors disabled:opacity-50"
+                  >
+                    {emailSending === "alert-dummy" ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                    )}
+                    <span className="text-xs font-medium">Send Test Alert</span>
+                  </button>
+                </div>
+                
+                {/* Daily */}
+                <div>
+                  <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider px-1 block mb-1.5">Daily Summary</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSendEmail("daily", true)}
+                      disabled={emailSending !== null}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-dark-bg hover:bg-dark-border/50 transition-colors disabled:opacity-50"
+                    >
+                      {emailSending === "daily-dummy" ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-dark-text-secondary" />
+                      ) : (
+                        <TestTube className="w-3 h-3 text-dark-text-secondary" />
+                      )}
+                      <span className="text-xs text-dark-text-secondary">Dummy</span>
+                    </button>
+                    <button
+                      onClick={() => handleSendEmail("daily", false)}
+                      disabled={emailSending !== null}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-brand-gold/10 hover:bg-brand-gold/20 text-brand-gold transition-colors disabled:opacity-50"
+                    >
+                      {emailSending === "daily-real" ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Calendar className="w-3 h-3" />
+                      )}
+                      <span className="text-xs font-medium">Real</span>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Weekly */}
+                <div>
+                  <span className="text-[10px] text-dark-text-secondary uppercase tracking-wider px-1 block mb-1.5">Weekly Report</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSendEmail("weekly", true)}
+                      disabled={emailSending !== null}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-dark-bg hover:bg-dark-border/50 transition-colors disabled:opacity-50"
+                    >
+                      {emailSending === "weekly-dummy" ? (
+                        <Loader2 className="w-3 h-3 animate-spin text-dark-text-secondary" />
+                      ) : (
+                        <TestTube className="w-3 h-3 text-dark-text-secondary" />
+                      )}
+                      <span className="text-xs text-dark-text-secondary">Dummy</span>
+                    </button>
+                    <button
+                      onClick={() => handleSendEmail("weekly", false)}
+                      disabled={emailSending !== null}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-brand-gold/10 hover:bg-brand-gold/20 text-brand-gold transition-colors disabled:opacity-50"
+                    >
+                      {emailSending === "weekly-real" ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <FileText className="w-3 h-3" />
+                      )}
+                      <span className="text-xs font-medium">Real</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Floating Action Button */}
+        <button
+          onClick={() => setIsMailDropdownOpen(!isMailDropdownOpen)}
+          className={`w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ${
+            isMailDropdownOpen 
+              ? "bg-brand-gold text-brand-charcoal rotate-45" 
+              : "bg-dark-surface border border-dark-border text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold"
+          }`}
+        >
+          {isMailDropdownOpen ? (
+            <span className="text-xl font-light">+</span>
+          ) : (
+            <Mail className="w-5 h-5" />
+          )}
+        </button>
+      </div>
+
       <style>{`
         @keyframes slideIn {
           from {
@@ -682,6 +897,19 @@ export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
         }
         .animate-slideIn {
           animation: slideIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.2s ease-out forwards;
         }
       `}</style>
     </div>
