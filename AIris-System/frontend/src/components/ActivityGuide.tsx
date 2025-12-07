@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { apiClient, type TaskRequest } from "../services/api";
+import { getVoiceControlService } from "../services/voiceControl";
 
 // Web Speech API type definitions
 interface SpeechRecognition extends EventTarget {
@@ -69,6 +70,7 @@ declare global {
 
 interface ActivityGuideProps {
   cameraOn: boolean;
+  voiceOnlyMode?: boolean;
 }
 
 // Log entry with metadata
@@ -153,7 +155,7 @@ const stageBadgeColors: Record<string, string> = {
   DONE: "bg-green-600",
 };
 
-export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
+export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: ActivityGuideProps) {
   const [taskInput, setTaskInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentInstruction, setCurrentInstruction] = useState(
@@ -181,6 +183,16 @@ export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const lastInstructionRef = useRef<string>("");
+  
+  // Refs for voice control
+  const taskInputRef = useRef<HTMLInputElement>(null);
+  const micButtonRef = useRef<HTMLButtonElement>(null);
+  const startTaskButtonRef = useRef<HTMLButtonElement>(null);
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
+  const noButtonRef = useRef<HTMLButtonElement>(null);
+  const voiceControlRef = useRef(getVoiceControlService());
+  const isInDictationModeRef = useRef(false);
+  const lastSpokenInstructionRef = useRef<string>("");
 
   // Add entry to guidance log with duplicate filtering
   const addLogEntry = useCallback(
@@ -220,6 +232,86 @@ export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
   const clearLog = useCallback(() => {
     setGuidanceLog([]);
   }, []);
+
+  // Auto-read instructions when they change (voice-only mode)
+  useEffect(() => {
+    if (voiceOnlyMode && currentInstruction && currentInstruction !== lastSpokenInstructionRef.current) {
+      lastSpokenInstructionRef.current = currentInstruction;
+      // Interrupt previous audio and speak new instruction
+      voiceControlRef.current.speakText(currentInstruction, true);
+    }
+  }, [currentInstruction, voiceOnlyMode]);
+
+  // Auto-read confirmation question when awaiting feedback (voice-only mode)
+  useEffect(() => {
+    if (voiceOnlyMode && awaitingFeedback && currentInstruction) {
+      // Read the confirmation question
+      voiceControlRef.current.speakText(currentInstruction, true);
+    }
+  }, [awaitingFeedback, voiceOnlyMode, currentInstruction]);
+
+  // Voice control setup for Activity Guide
+  useEffect(() => {
+    if (!voiceOnlyMode) {
+      // Stop dictation if active
+      voiceControlRef.current.stopDictation();
+      isInDictationModeRef.current = false;
+      return;
+    }
+
+    const voiceControl = voiceControlRef.current;
+
+    // Register command callback (don't start a new listener - App.tsx manages it)
+    const unregister = voiceControl.registerCommandCallback(
+      (command, transcript) => {
+        console.log(`[Activity Guide] Voice command: ${command} - "${transcript}"`);
+
+        switch (command) {
+          case "enter_task":
+            // Click the mic button to start listening/dictation
+            if (!isListening && !isInDictationModeRef.current && micButtonRef.current) {
+              micButtonRef.current.click();
+            }
+            break;
+
+          case "start_task":
+            // Stop dictation/listening if active
+            if (isListening && micButtonRef.current) {
+              // Click mic button to stop if listening
+              micButtonRef.current.click();
+            } else if (isInDictationModeRef.current) {
+              voiceControl.stopDictation();
+              isInDictationModeRef.current = false;
+            }
+            // Click start task button
+            if (startTaskButtonRef.current && !isProcessing && taskInput.trim()) {
+              startTaskButtonRef.current.click();
+            }
+            break;
+
+          case "yes":
+            // Click yes button if awaiting feedback
+            if (awaitingFeedback && yesButtonRef.current) {
+              yesButtonRef.current.click();
+            }
+            break;
+
+          case "no":
+            // Click no button if awaiting feedback
+            if (awaitingFeedback && noButtonRef.current) {
+              noButtonRef.current.click();
+            }
+            break;
+        }
+      }
+    );
+
+    return () => {
+      unregister();
+      voiceControl.stopDictation();
+      isInDictationModeRef.current = false;
+    };
+  }, [voiceOnlyMode, awaitingFeedback, isProcessing, taskInput, isListening]);
 
   useEffect(() => {
     if (cameraOn) {
@@ -693,6 +785,7 @@ export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
           <div className="flex gap-2">
             <div className="flex-1 relative">
               <input
+                ref={taskInputRef}
                 type="text"
                 value={taskInput}
                 onChange={(e) => setTaskInput(e.target.value)}
@@ -706,29 +799,40 @@ export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
                 className="w-full px-4 py-2 pr-12 bg-dark-bg border border-dark-border rounded-xl text-dark-text-primary placeholder-dark-text-secondary focus:outline-none focus:border-brand-gold disabled:opacity-50"
               />
               {speechSupported && (
-                <button
-                  onClick={handleToggleListening}
-                  disabled={
-                    !cameraOn ||
-                    isProcessing ||
-                    (stage !== "IDLE" && stage !== "DONE")
-                  }
-                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${
-                    isListening
-                      ? "bg-red-600 text-white animate-pulse"
-                      : "text-dark-text-secondary hover:text-brand-gold hover:bg-dark-surface"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  title={isListening ? "Stop listening" : "Start voice input"}
-                >
-                  {isListening ? (
-                    <MicOff className="w-4 h-4" />
-                  ) : (
-                    <Mic className="w-4 h-4" />
+                <>
+                  <button
+                    ref={micButtonRef}
+                    onClick={handleToggleListening}
+                    disabled={
+                      !cameraOn ||
+                      isProcessing ||
+                      (stage !== "IDLE" && stage !== "DONE")
+                    }
+                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${
+                      isListening
+                        ? "bg-red-600 text-white animate-pulse"
+                        : "text-dark-text-secondary hover:text-brand-gold hover:bg-dark-surface"
+                    } disabled:opacity-50 disabled:cursor-not-allowed ${
+                      voiceOnlyMode ? "opacity-0 pointer-events-none" : ""
+                    }`}
+                    title={isListening ? "Stop listening" : "Start voice input"}
+                  >
+                    {isListening ? (
+                      <MicOff className="w-4 h-4" />
+                    ) : (
+                      <Mic className="w-4 h-4" />
+                    )}
+                  </button>
+                  {voiceOnlyMode && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-gold pointer-events-none">
+                      <Mic className="w-4 h-4 animate-pulse" title="Voice-only mode active" />
+                    </div>
                   )}
-                </button>
+                </>
               )}
             </div>
             <button
+              ref={startTaskButtonRef}
               onClick={handleStartTask}
               disabled={
                 !cameraOn ||
@@ -794,6 +898,7 @@ export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
           {awaitingFeedback && (
             <div className="mt-4 flex gap-3">
               <button
+                ref={yesButtonRef}
                 onClick={() => handleFeedback(true)}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-all"
               >
@@ -801,6 +906,7 @@ export default function ActivityGuide({ cameraOn }: ActivityGuideProps) {
                 Yes
               </button>
               <button
+                ref={noButtonRef}
                 onClick={() => handleFeedback(false)}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-all"
               >

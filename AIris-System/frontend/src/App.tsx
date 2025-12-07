@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Camera, CameraOff, Settings } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Camera, CameraOff, Settings, Mic, MicOff } from 'lucide-react';
 import ActivityGuide from './components/ActivityGuide';
 import SceneDescription from './components/SceneDescription';
 import HardwareSettings from './components/HardwareSettings';
 import { apiClient } from './services/api';
+import { getVoiceControlService } from './services/voiceControl';
 
 type Mode = 'Activity Guide' | 'Scene Description';
 type CameraSource = 'local' | 'esp32';
@@ -18,6 +19,18 @@ function App() {
     const saved = localStorage.getItem('airis-camera-source');
     return (saved === 'esp32' ? 'esp32' : 'local') as CameraSource;
   });
+  const [voiceOnlyMode, setVoiceOnlyMode] = useState(() => {
+    const saved = localStorage.getItem('airis-voice-only');
+    // Default to false, only true if explicitly set to 'true'
+    return saved !== null && saved === 'true';
+  });
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const voiceControlRef = useRef(getVoiceControlService());
+  const modeButtonRefs = {
+    'Activity Guide': useRef<HTMLButtonElement>(null),
+    'Scene Description': useRef<HTMLButtonElement>(null),
+  };
+  const cameraButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -31,6 +44,55 @@ function App() {
   useEffect(() => {
     localStorage.setItem('airis-camera-source', cameraSource);
   }, [cameraSource]);
+
+  useEffect(() => {
+    localStorage.setItem('airis-voice-only', String(voiceOnlyMode));
+  }, [voiceOnlyMode]);
+
+  // Voice control setup
+  useEffect(() => {
+    const voiceControl = voiceControlRef.current;
+
+    if (voiceOnlyMode) {
+      voiceControl.startListening((command, transcript) => {
+        console.log(`Voice command: ${command} - "${transcript}"`);
+
+        switch (command) {
+          case 'switch_mode':
+            if (transcript.includes('activity guide')) {
+              if (mode !== 'Activity Guide' && modeButtonRefs['Activity Guide'].current) {
+                modeButtonRefs['Activity Guide'].current?.click();
+              }
+            } else if (transcript.includes('scene description')) {
+              if (mode !== 'Scene Description' && modeButtonRefs['Scene Description'].current) {
+                modeButtonRefs['Scene Description'].current?.click();
+              }
+            }
+            break;
+
+          case 'camera_on':
+            if (!cameraOn && cameraButtonRef.current) {
+              cameraButtonRef.current.click();
+            }
+            break;
+
+          case 'camera_off':
+            if (cameraOn && cameraButtonRef.current) {
+              cameraButtonRef.current.click();
+            }
+            break;
+        }
+      });
+    } else {
+      voiceControl.stopListening();
+    }
+
+    return () => {
+      if (!voiceOnlyMode) {
+        voiceControl.stopListening();
+      }
+    };
+  }, [voiceOnlyMode, mode, cameraOn]);
 
   useEffect(() => {
     if (cameraSource === 'local') {
@@ -79,9 +141,31 @@ function App() {
         </h1>
 
         <div className="flex items-center space-x-4 md:space-x-6">
+          {/* Voice Only Mode Toggle */}
+          <button
+            onClick={() => {
+              const newMode = !voiceOnlyMode;
+              setVoiceOnlyMode(newMode);
+              setHasUserInteracted(true);
+              // Mark user interaction for audio playback
+              if (newMode) {
+                voiceControlRef.current.markUserInteracted();
+              }
+            }}
+            title={voiceOnlyMode ? 'Disable Voice Only Mode' : 'Enable Voice Only Mode'}
+            className={`p-2.5 rounded-xl border-2 transition-all duration-300 ${
+              voiceOnlyMode
+                ? 'bg-brand-gold text-brand-charcoal border-brand-gold'
+                : 'border-dark-border bg-dark-surface text-dark-text-secondary hover:border-brand-gold hover:text-brand-gold'
+            }`}
+          >
+            {voiceOnlyMode ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+          </button>
+
           {/* Mode Selection */}
           <div className="flex items-center space-x-2 bg-dark-surface rounded-xl p-1 border border-dark-border">
             <button
+              ref={modeButtonRefs['Activity Guide']}
               onClick={() => setMode('Activity Guide')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${mode === 'Activity Guide'
                   ? 'bg-brand-gold text-brand-charcoal'
@@ -91,6 +175,7 @@ function App() {
               Activity Guide
             </button>
             <button
+              ref={modeButtonRefs['Scene Description']}
               onClick={() => setMode('Scene Description')}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${mode === 'Scene Description'
                   ? 'bg-brand-gold text-brand-charcoal'
@@ -112,6 +197,7 @@ function App() {
 
           {/* Camera Toggle */}
           <button
+            ref={cameraButtonRef}
             onClick={handleCameraToggle}
             title={cameraOn ? 'Turn Camera Off' : 'Turn Camera On'}
             className={`p-2.5 rounded-xl border-2 transition-all duration-300 ${cameraOn
@@ -143,9 +229,9 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 overflow-hidden">
         {mode === 'Activity Guide' ? (
-          <ActivityGuide cameraOn={cameraOn} />
+          <ActivityGuide cameraOn={cameraOn} voiceOnlyMode={voiceOnlyMode} />
         ) : (
-          <SceneDescription cameraOn={cameraOn} />
+          <SceneDescription cameraOn={cameraOn} voiceOnlyMode={voiceOnlyMode} />
         )}
       </main>
 

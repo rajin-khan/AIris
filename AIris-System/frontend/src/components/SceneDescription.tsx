@@ -19,6 +19,7 @@ import { apiClient } from "../services/api";
 
 interface SceneDescriptionProps {
   cameraOn: boolean;
+  voiceOnlyMode?: boolean;
 }
 
 interface SessionStats {
@@ -38,7 +39,10 @@ interface SummaryEvent {
   riskScore: number;
 }
 
-export default function SceneDescription({ cameraOn }: SceneDescriptionProps) {
+export default function SceneDescription({
+  cameraOn,
+  voiceOnlyMode = false,
+}: SceneDescriptionProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentDescription, setCurrentDescription] = useState("");
