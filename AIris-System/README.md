@@ -120,7 +120,7 @@ The frontend serves as a proof-of-concept GUI. The final device will be fully us
 ### Backend (.env)
 ```bash
 GROQ_API_KEY=your_groq_api_key    # Required
-YOLO_MODEL_PATH=yolov8s.pt        # Optional, auto-downloads
+YOLO_MODEL_PATH=yolo26s.pt        # Optional, auto-downloads
 ```
 
 ### Frontend (.env)
@@ -133,7 +133,7 @@ VITE_API_BASE_URL=http://localhost:8000  # Optional, default shown
 | Component | Technology |
 |:----------|:-----------|
 | Backend | FastAPI, Python 3.10+ |
-| Object Detection | YOLOv8 (Ultralytics) |
+| Object Detection | YOLO26 (Ultralytics) |
 | Hand Tracking | MediaPipe |
 | Image Captioning | BLIP |
 | LLM Reasoning | Groq API (Llama 3) |

@@ -23,7 +23,7 @@ class ModelService:
         self.models_loaded = False
         
         # Constants
-        self.YOLO_MODEL_PATH = os.getenv('YOLO_MODEL_PATH', 'yolov8s.pt')
+        self.YOLO_MODEL_PATH = os.getenv('YOLO_MODEL_PATH', 'yolo26s.pt')
         self.CONFIG_PATH = os.getenv('CONFIG_PATH', 'config.yaml')
     
     async def initialize(self):
@@ -79,7 +79,7 @@ class ModelService:
                 self.yolo_model = YOLO(model_path)
             else:
                 # Try to download or use default
-                self.yolo_model = YOLO('yolov8s.pt')
+                self.yolo_model = YOLO('yolo26s.pt')
             
             # Verify model is actually loaded by doing a test inference
             import numpy as np
