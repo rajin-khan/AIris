@@ -11,63 +11,6 @@ import {
 import { apiClient, type TaskRequest } from "../services/api";
 import { getVoiceControlService } from "../services/voiceControl";
 
-// Web Speech API type definitions
-interface SpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
-  onresult:
-    | ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => any)
-    | null;
-  onerror:
-    | ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => any)
-    | null;
-  onend: ((this: SpeechRecognition, ev: Event) => any) | null;
-}
-
-interface SpeechRecognitionEvent extends Event {
-  results: SpeechRecognitionResultList;
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  error: string;
-  message: string;
-}
-
-interface SpeechRecognitionResultList {
-  length: number;
-  item(index: number): SpeechRecognitionResult;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  length: number;
-  item(index: number): SpeechRecognitionAlternative;
-  [index: number]: SpeechRecognitionAlternative;
-  isFinal: boolean;
-}
-
-interface SpeechRecognitionAlternative {
-  transcript: string;
-  confidence: number;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-    webkitSpeechRecognition: {
-      new (): SpeechRecognition;
-    };
-  }
-}
-
 interface ActivityGuideProps {
   cameraOn: boolean;
   voiceOnlyMode?: boolean;
@@ -170,18 +113,9 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     Array<{ name: string; box: number[] }>
   >([]);
   const [handDetected, setHandDetected] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [speechSupported, setSpeechSupported] = useState(false);
-  const [useWebSpeech, setUseWebSpeech] = useState(true); // Try Web Speech API first
-  const [fallbackToOffline, setFallbackToOffline] = useState(false);
   const [currentTaskTarget, setCurrentTaskTarget] = useState<string>("");
   const frameIntervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const streamRef = useRef<MediaStream | null>(null);
   const lastInstructionRef = useRef<string>("");
   
   // Refs for voice control
@@ -262,46 +196,108 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     const voiceControl = voiceControlRef.current;
 
     // Register command callback (don't start a new listener - App.tsx manages it)
+    console.log(`[ActivityGuide] Registering voice command callback. Voice-only mode: ${voiceOnlyMode}`);
     const unregister = voiceControl.registerCommandCallback(
       (command, transcript) => {
-        console.log(`[Activity Guide] Voice command: ${command} - "${transcript}"`);
+        console.log(`[ActivityGuide] Voice command received: ${command} - "${transcript}"`, {
+          isProcessing,
+          cameraOn,
+          isInDictationMode: isInDictationModeRef.current,
+          awaitingFeedback,
+          taskInput: taskInput.substring(0, 50) + "..."
+        });
 
         switch (command) {
           case "enter_task":
-            // Click the mic button to start listening/dictation
-            if (!isListening && !isInDictationModeRef.current && micButtonRef.current) {
-              micButtonRef.current.click();
+            console.log(`[ActivityGuide] Processing enter_task command`);
+            // Start dictation mode using voiceControl service
+            if (!isInDictationModeRef.current && !isProcessing && cameraOn) {
+              console.log(`[ActivityGuide] Starting dictation...`);
+              isInDictationModeRef.current = true;
+              // Clear existing input when starting dictation
+              setTaskInput("");
+              voiceControl.startDictation((dictatedText) => {
+                console.log(`[ActivityGuide] Dictation text received: "${dictatedText}"`);
+                // Update input field in real-time as user speaks
+                // The dictatedText is the full phrase from Web Speech API
+                setTaskInput((prev) => {
+                  const newText = dictatedText.trim();
+                  // In dictation mode, replace or append based on what makes sense
+                  // If the new text is longer or different, use it
+                  if (newText) {
+                    // If previous text is empty or new text doesn't contain previous, append
+                    if (!prev || (!newText.toLowerCase().includes(prev.toLowerCase()) && !prev.toLowerCase().includes(newText.toLowerCase()))) {
+                      return prev ? prev + " " + newText : newText;
+                    }
+                    // If new text contains previous, use new text (it's more complete)
+                    if (newText.toLowerCase().includes(prev.toLowerCase())) {
+                      return newText;
+                    }
+                    return prev;
+                  }
+                  return prev;
+                });
+              });
+            } else {
+              console.log(`[ActivityGuide] Cannot start dictation:`, {
+                isInDictationMode: isInDictationModeRef.current,
+                isProcessing,
+                cameraOn
+              });
             }
             break;
 
           case "start_task":
-            // Stop dictation/listening if active
-            if (isListening && micButtonRef.current) {
-              // Click mic button to stop if listening
-              micButtonRef.current.click();
-            } else if (isInDictationModeRef.current) {
+            console.log(`[ActivityGuide] Processing start_task command`);
+            // Stop dictation if active
+            if (isInDictationModeRef.current) {
+              console.log(`[ActivityGuide] Stopping dictation`);
               voiceControl.stopDictation();
               isInDictationModeRef.current = false;
             }
-            // Click start task button
-            if (startTaskButtonRef.current && !isProcessing && taskInput.trim()) {
-              startTaskButtonRef.current.click();
+            // Start task if we have input
+            if (!isProcessing && taskInput.trim()) {
+              console.log(`[ActivityGuide] Starting task with input: "${taskInput}"`);
+              handleStartTask();
+            } else {
+              console.log(`[ActivityGuide] Cannot start task:`, {
+                isProcessing,
+                hasInput: !!taskInput.trim(),
+                taskInput: taskInput.substring(0, 50)
+              });
             }
             break;
 
           case "yes":
+            console.log(`[ActivityGuide] Processing yes command`);
             // Click yes button if awaiting feedback
             if (awaitingFeedback && yesButtonRef.current) {
+              console.log(`[ActivityGuide] Clicking yes button`);
               yesButtonRef.current.click();
+            } else {
+              console.log(`[ActivityGuide] Cannot click yes:`, {
+                awaitingFeedback,
+                hasButton: !!yesButtonRef.current
+              });
             }
             break;
 
           case "no":
+            console.log(`[ActivityGuide] Processing no command`);
             // Click no button if awaiting feedback
             if (awaitingFeedback && noButtonRef.current) {
+              console.log(`[ActivityGuide] Clicking no button`);
               noButtonRef.current.click();
+            } else {
+              console.log(`[ActivityGuide] Cannot click no:`, {
+                awaitingFeedback,
+                hasButton: !!noButtonRef.current
+              });
             }
             break;
+
+          default:
+            console.log(`[ActivityGuide] Unhandled command: ${command}`);
         }
       }
     );
@@ -311,7 +307,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
       voiceControl.stopDictation();
       isInDictationModeRef.current = false;
     };
-  }, [voiceOnlyMode, awaitingFeedback, isProcessing, taskInput, isListening]);
+  }, [voiceOnlyMode, awaitingFeedback, isProcessing, taskInput, cameraOn]);
 
   useEffect(() => {
     if (cameraOn) {
@@ -322,133 +318,6 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     }
     return () => stopFrameProcessing();
   }, [cameraOn, stage]);
-
-  // Initialize Web Speech API first, fallback to MediaRecorder if not available
-  useEffect(() => {
-    // Check for Web Speech API support
-    const SpeechRecognitionClass =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognitionClass) {
-      setSpeechSupported(true);
-      setUseWebSpeech(true);
-
-      const recognition = new SpeechRecognitionClass();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-US";
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        setFallbackToOffline(false);
-      };
-
-      recognition.onresult = (event: SpeechRecognitionEvent) => {
-        if (
-          event.results &&
-          event.results.length > 0 &&
-          event.results[0].length > 0
-        ) {
-          const transcript = event.results[0][0].transcript.trim();
-          if (transcript) {
-            setTaskInput((prev) => prev + (prev ? " " : "") + transcript);
-          }
-        }
-        setIsListening(false);
-      };
-
-      recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error("Web Speech API error:", event.error, event.message);
-
-        // If network error or service unavailable, fall back to offline method
-        if (
-          event.error === "network" ||
-          event.error === "service-not-allowed"
-        ) {
-          console.log(
-            "Web Speech API network error, falling back to offline Whisper model..."
-          );
-          setUseWebSpeech(false);
-          setFallbackToOffline(true);
-          setIsListening(false);
-
-          // Automatically start offline recording if we have MediaRecorder support
-          if (
-            navigator.mediaDevices &&
-            typeof navigator.mediaDevices.getUserMedia === "function"
-          ) {
-            setTimeout(() => {
-              startRecording();
-            }, 500);
-          } else {
-            alert(
-              "Web Speech API failed and offline mode not available. Please check your internet connection."
-            );
-          }
-        } else if (event.error === "not-allowed") {
-          // Permission denied - don't auto-fallback, just show error
-          setIsListening(false);
-          alert(
-            "Microphone permission denied. Please enable microphone access in your browser settings."
-          );
-        } else if (event.error === "no-speech") {
-          // Normal - user didn't speak
-          setIsListening(false);
-        } else if (event.error === "aborted") {
-          // User or system aborted
-          setIsListening(false);
-        } else {
-          setIsListening(false);
-          console.warn("Web Speech API error:", event.error);
-        }
-      };
-
-      recognition.onend = () => {
-        // Don't set listening to false here - let error/result handlers do it
-      };
-
-      recognitionRef.current = recognition;
-    } else {
-      // No Web Speech API, use offline method
-      console.log("Web Speech API not available, using offline Whisper model");
-      setUseWebSpeech(false);
-      if (
-        navigator.mediaDevices &&
-        typeof navigator.mediaDevices.getUserMedia === "function"
-      ) {
-        setSpeechSupported(true);
-      } else {
-        setSpeechSupported(false);
-        console.warn("No speech recognition available in this browser");
-      }
-    }
-
-    return () => {
-      // Cleanup Web Speech API
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-          recognitionRef.current.abort();
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-      // Cleanup MediaRecorder
-      if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== "inactive"
-      ) {
-        try {
-          mediaRecorderRef.current.stop();
-        } catch (e) {
-          // Ignore errors during cleanup
-        }
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-      }
-    };
-  }, []);
 
   const startFrameProcessing = () => {
     if (frameIntervalRef.current) return;
@@ -580,176 +449,6 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     }
   };
 
-  const handleToggleListening = async () => {
-    if (!speechSupported) {
-      alert("Microphone access not available in this browser.");
-      return;
-    }
-
-    if (isListening) {
-      // Stop recording/listening
-      if (useWebSpeech && recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-          recognitionRef.current.abort();
-        } catch (e) {
-          // Ignore errors
-        }
-      } else {
-        await stopRecording();
-      }
-      setIsListening(false);
-    } else {
-      // Start recording - try Web Speech API first, fallback to offline
-      if (useWebSpeech && recognitionRef.current) {
-        startWebSpeechRecognition();
-      } else {
-        await startRecording();
-      }
-    }
-  };
-
-  const startWebSpeechRecognition = () => {
-    if (!recognitionRef.current) {
-      alert("Speech recognition not initialized.");
-      return;
-    }
-
-    try {
-      // Abort any existing recognition
-      try {
-        recognitionRef.current.abort();
-      } catch (e) {
-        // Ignore
-      }
-
-      // Start Web Speech API
-      setTimeout(() => {
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.start();
-          } catch (error: any) {
-            const errorMsg = error.message || error.toString() || "";
-            if (errorMsg.includes("already started")) {
-              // Already running
-              setIsListening(true);
-            } else {
-              console.error("Web Speech API start error:", error);
-              // Fall back to offline
-              setUseWebSpeech(false);
-              startRecording();
-            }
-          }
-        }
-      }, 100);
-    } catch (error) {
-      console.error("Error starting Web Speech API:", error);
-      // Fall back to offline
-      setUseWebSpeech(false);
-      startRecording();
-    }
-  };
-
-  const startRecording = async () => {
-    try {
-      // Request microphone access
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      // Create MediaRecorder with WAV format (better compatibility)
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm")
-          ? "audio/webm"
-          : "audio/wav",
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        // Convert audio chunks to blob
-        const audioBlob = new Blob(audioChunksRef.current, {
-          type: mediaRecorder.mimeType || "audio/webm",
-        });
-
-        // Convert to base64
-        const reader = new FileReader();
-        reader.onloadend = async () => {
-          const base64Audio = (reader.result as string).split(",")[1];
-
-          // Transcribe using backend
-          setIsTranscribing(true);
-          try {
-            const result = await apiClient.transcribeAudio(base64Audio);
-            if (result.success && result.text) {
-              setTaskInput(
-                (prev) => prev + (prev ? " " : "") + result.text.trim()
-              );
-            }
-          } catch (error) {
-            console.error("Transcription error:", error);
-            alert("Failed to transcribe audio. Please try again.");
-          } finally {
-            setIsTranscribing(false);
-          }
-        };
-        reader.readAsDataURL(audioBlob);
-
-        // Stop all tracks
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-          streamRef.current = null;
-        }
-      };
-
-      // Start recording
-      mediaRecorder.start();
-      setIsListening(true);
-    } catch (error: any) {
-      console.error("Error starting recording:", error);
-      setIsListening(false);
-
-      if (
-        error.name === "NotAllowedError" ||
-        error.name === "PermissionDeniedError"
-      ) {
-        alert(
-          "Microphone permission denied. Please enable microphone access in your browser settings."
-        );
-      } else if (
-        error.name === "NotFoundError" ||
-        error.name === "DevicesNotFoundError"
-      ) {
-        alert(
-          "No microphone found. Please connect a microphone and try again."
-        );
-      } else {
-        alert(
-          "Failed to access microphone. Please check your browser settings and try again."
-        );
-      }
-    }
-  };
-
-  const stopRecording = async () => {
-    if (
-      mediaRecorderRef.current &&
-      mediaRecorderRef.current.state !== "inactive"
-    ) {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (error) {
-        console.error("Error stopping recording:", error);
-      }
-    }
-    setIsListening(false);
-  };
-
   return (
     <div className="flex-1 flex flex-col lg:flex-row p-6 md:p-10 gap-6 md:gap-10 overflow-hidden h-full">
       {/* Left Panel - Camera Feed */}
@@ -798,37 +497,51 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
                 }
                 className="w-full px-4 py-2 pr-12 bg-dark-bg border border-dark-border rounded-xl text-dark-text-primary placeholder-dark-text-secondary focus:outline-none focus:border-brand-gold disabled:opacity-50"
               />
-              {speechSupported && (
-                <>
-                  <button
-                    ref={micButtonRef}
-                    onClick={handleToggleListening}
-                    disabled={
-                      !cameraOn ||
-                      isProcessing ||
-                      (stage !== "IDLE" && stage !== "DONE")
+              {!voiceOnlyMode && (
+                <button
+                  ref={micButtonRef}
+                  onClick={() => {
+                    // In non-voice-only mode, use voiceControl for dictation
+                    const voiceControl = voiceControlRef.current;
+                    if (!isInDictationModeRef.current) {
+                      isInDictationModeRef.current = true;
+                      voiceControl.startDictation((dictatedText) => {
+                        setTaskInput((prev) => {
+                          const newText = dictatedText.trim();
+                          if (prev && !prev.endsWith(newText)) {
+                            return prev + " " + newText;
+                          }
+                          return newText;
+                        });
+                      });
+                    } else {
+                      voiceControl.stopDictation();
+                      isInDictationModeRef.current = false;
                     }
-                    className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${
-                      isListening
-                        ? "bg-red-600 text-white animate-pulse"
-                        : "text-dark-text-secondary hover:text-brand-gold hover:bg-dark-surface"
-                    } disabled:opacity-50 disabled:cursor-not-allowed ${
-                      voiceOnlyMode ? "opacity-0 pointer-events-none" : ""
-                    }`}
-                    title={isListening ? "Stop listening" : "Start voice input"}
-                  >
-                    {isListening ? (
-                      <MicOff className="w-4 h-4" />
-                    ) : (
-                      <Mic className="w-4 h-4" />
-                    )}
-                  </button>
-                  {voiceOnlyMode && (
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-gold pointer-events-none">
-                      <Mic className="w-4 h-4 animate-pulse" title="Voice-only mode active" />
-                    </div>
+                  }}
+                  disabled={
+                    !cameraOn ||
+                    isProcessing ||
+                    (stage !== "IDLE" && stage !== "DONE")
+                  }
+                  className={`absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg transition-all ${
+                    isInDictationModeRef.current
+                      ? "bg-red-600 text-white animate-pulse"
+                      : "text-dark-text-secondary hover:text-brand-gold hover:bg-dark-surface"
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  title={isInDictationModeRef.current ? "Stop listening" : "Start voice input"}
+                >
+                  {isInDictationModeRef.current ? (
+                    <MicOff className="w-4 h-4" />
+                  ) : (
+                    <Mic className="w-4 h-4" />
                   )}
-                </>
+                </button>
+              )}
+              {voiceOnlyMode && (
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-gold pointer-events-none">
+                  <Mic className="w-4 h-4 animate-pulse" title="Voice-only mode active - say 'input task' to start dictation" />
+                </div>
               )}
             </div>
             <button
@@ -848,27 +561,28 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
               )}
             </button>
           </div>
-          {speechSupported && (
+          {!voiceOnlyMode && (
             <p className="text-xs text-dark-text-secondary mt-2">
-              {isTranscribing ? (
-                <span className="text-blue-400">
-                  ⏳ Transcribing with offline model...
-                </span>
-              ) : isListening ? (
+              {isInDictationModeRef.current ? (
                 <span className="text-red-400">
-                  {useWebSpeech ? (
-                    <>🎤 Listening (Web Speech API)... Speak your task now.</>
-                  ) : (
-                    <>
-                      🎤 Recording (offline)... Speak your task now. Click mic
-                      again to stop.
-                    </>
-                  )}
+                  🎤 Listening... Speak your task now. Click mic again to stop.
                 </span>
               ) : (
                 <span>
                   💡 Click the microphone icon to use voice input
-                  {useWebSpeech ? " (Web Speech API)" : " (offline Whisper)"}
+                </span>
+              )}
+            </p>
+          )}
+          {voiceOnlyMode && (
+            <p className="text-xs text-dark-text-secondary mt-2">
+              {isInDictationModeRef.current ? (
+                <span className="text-red-400">
+                  🎤 Dictation active... Say "start task" when done.
+                </span>
+              ) : (
+                <span>
+                  💡 Say "input task" to start voice input
                 </span>
               )}
             </p>

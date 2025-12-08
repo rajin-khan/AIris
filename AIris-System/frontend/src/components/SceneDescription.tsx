@@ -16,6 +16,7 @@ import {
   TestTube,
 } from "lucide-react";
 import { apiClient } from "../services/api";
+import { getVoiceControlService } from "../services/voiceControl";
 
 interface SceneDescriptionProps {
   cameraOn: boolean;
@@ -84,6 +85,11 @@ export default function SceneDescription({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastSummaryRef = useRef<string>("");
   const frameCountRef = useRef(0);
+  const voiceControlRef = useRef(getVoiceControlService());
+  const startRecordingButtonRef = useRef<HTMLButtonElement>(null);
+  const stopRecordingButtonRef = useRef<HTMLButtonElement>(null);
+  const lastSpokenSummaryRef = useRef<string>("");
+  const lastSpokenDescriptionRef = useRef<string>("");
 
   const BUFFER_MAX = 5; // 5 frames at 2 FPS = 2.5 seconds
 
@@ -159,6 +165,85 @@ export default function SceneDescription({
       setEmailSending(null);
     }
   };
+
+  // Voice control setup for Scene Description
+  useEffect(() => {
+    if (!voiceOnlyMode) {
+      return;
+    }
+
+    const voiceControl = voiceControlRef.current;
+
+    // Register command callback
+    console.log(`[SceneDescription] Registering voice command callback. Voice-only mode: ${voiceOnlyMode}`);
+    const unregister = voiceControl.registerCommandCallback(
+      (command, transcript) => {
+        console.log(`[SceneDescription] Voice command received: ${command} - "${transcript}"`, {
+          isRecording,
+          cameraOn,
+          hasStartButton: !!startRecordingButtonRef.current,
+          hasStopButton: !!stopRecordingButtonRef.current
+        });
+
+        switch (command) {
+          case "start_recording":
+            console.log(`[SceneDescription] Processing start_recording command`);
+            if (!isRecording && cameraOn && startRecordingButtonRef.current) {
+              console.log(`[SceneDescription] Clicking start recording button`);
+              startRecordingButtonRef.current.click();
+            } else {
+              console.log(`[SceneDescription] Cannot start recording:`, {
+                isRecording,
+                cameraOn,
+                hasButton: !!startRecordingButtonRef.current
+              });
+            }
+            break;
+
+          case "stop_recording":
+            console.log(`[SceneDescription] Processing stop_recording command`);
+            if (isRecording && stopRecordingButtonRef.current) {
+              console.log(`[SceneDescription] Clicking stop recording button`);
+              stopRecordingButtonRef.current.click();
+            } else {
+              console.log(`[SceneDescription] Cannot stop recording:`, {
+                isRecording,
+                hasButton: !!stopRecordingButtonRef.current
+              });
+            }
+            break;
+
+          default:
+            console.log(`[SceneDescription] Unhandled command: ${command}`);
+        }
+      }
+    );
+
+    return () => {
+      unregister();
+    };
+  }, [voiceOnlyMode, isRecording, cameraOn]);
+
+  // Auto-read summaries when they change (voice-only mode)
+  useEffect(() => {
+    if (voiceOnlyMode && currentSummary && currentSummary !== lastSpokenSummaryRef.current) {
+      lastSpokenSummaryRef.current = currentSummary;
+      // Interrupt previous audio and speak new summary
+      voiceControlRef.current.speakText(currentSummary, true);
+    }
+  }, [currentSummary, voiceOnlyMode]);
+
+  // Auto-read descriptions when they change (voice-only mode)
+  useEffect(() => {
+    if (voiceOnlyMode && currentDescription && currentDescription !== lastSpokenDescriptionRef.current) {
+      // Only read if there's no summary (summaries are more important)
+      if (!currentSummary) {
+        lastSpokenDescriptionRef.current = currentDescription;
+        // Interrupt previous audio and speak new description
+        voiceControlRef.current.speakText(currentDescription, true);
+      }
+    }
+  }, [currentDescription, voiceOnlyMode, currentSummary]);
 
   useEffect(() => {
     if (cameraOn) {
@@ -474,6 +559,7 @@ export default function SceneDescription({
             )}
             {!isRecording ? (
               <button
+                ref={startRecordingButtonRef}
                 onClick={handleStartRecording}
                 disabled={!cameraOn || isProcessing}
                 className="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2
@@ -485,6 +571,7 @@ export default function SceneDescription({
               </button>
             ) : (
               <button
+                ref={stopRecordingButtonRef}
                 onClick={handleStopRecording}
                 className="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 
                   bg-red-600 text-white hover:bg-red-700"

@@ -54,36 +54,74 @@ function App() {
     const voiceControl = voiceControlRef.current;
 
     if (voiceOnlyMode) {
+      console.log(`[App] Starting voice control listening. Mode: ${mode}, Camera: ${cameraOn}`);
       voiceControl.startListening((command, transcript) => {
-        console.log(`Voice command: ${command} - "${transcript}"`);
+        console.log(`[App] Voice command received: ${command} - "${transcript}"`, {
+          mode,
+          cameraOn,
+          hasActivityGuideButton: !!modeButtonRefs['Activity Guide'].current,
+          hasSceneDescriptionButton: !!modeButtonRefs['Scene Description'].current,
+          hasCameraButton: !!cameraButtonRef.current
+        });
 
         switch (command) {
           case 'switch_mode':
+            console.log(`[App] Processing switch_mode command`);
             if (transcript.includes('activity guide')) {
               if (mode !== 'Activity Guide' && modeButtonRefs['Activity Guide'].current) {
+                console.log(`[App] Switching to Activity Guide mode`);
                 modeButtonRefs['Activity Guide'].current?.click();
+              } else {
+                console.log(`[App] Cannot switch to Activity Guide:`, {
+                  currentMode: mode,
+                  hasButton: !!modeButtonRefs['Activity Guide'].current
+                });
               }
             } else if (transcript.includes('scene description')) {
               if (mode !== 'Scene Description' && modeButtonRefs['Scene Description'].current) {
+                console.log(`[App] Switching to Scene Description mode`);
                 modeButtonRefs['Scene Description'].current?.click();
+              } else {
+                console.log(`[App] Cannot switch to Scene Description:`, {
+                  currentMode: mode,
+                  hasButton: !!modeButtonRefs['Scene Description'].current
+                });
               }
             }
             break;
 
           case 'camera_on':
+            console.log(`[App] Processing camera_on command`);
             if (!cameraOn && cameraButtonRef.current) {
+              console.log(`[App] Turning camera on`);
               cameraButtonRef.current.click();
+            } else {
+              console.log(`[App] Cannot turn camera on:`, {
+                cameraOn,
+                hasButton: !!cameraButtonRef.current
+              });
             }
             break;
 
           case 'camera_off':
+            console.log(`[App] Processing camera_off command`);
             if (cameraOn && cameraButtonRef.current) {
+              console.log(`[App] Turning camera off`);
               cameraButtonRef.current.click();
+            } else {
+              console.log(`[App] Cannot turn camera off:`, {
+                cameraOn,
+                hasButton: !!cameraButtonRef.current
+              });
             }
             break;
+
+          default:
+            console.log(`[App] Unhandled command: ${command}`);
         }
       });
     } else {
+      console.log(`[App] Voice-only mode disabled, stopping listening`);
       voiceControl.stopListening();
     }
 
