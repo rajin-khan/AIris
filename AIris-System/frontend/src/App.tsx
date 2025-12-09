@@ -19,11 +19,7 @@ function App() {
     const saved = localStorage.getItem('airis-camera-source');
     return (saved === 'esp32' ? 'esp32' : 'local') as CameraSource;
   });
-  const [voiceOnlyMode, setVoiceOnlyMode] = useState(() => {
-    const saved = localStorage.getItem('airis-voice-only');
-    // Default to false, only true if explicitly set to 'true'
-    return saved !== null && saved === 'true';
-  });
+  const [voiceOnlyMode, setVoiceOnlyMode] = useState(false); // Always default to OFF
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const voiceControlRef = useRef(getVoiceControlService());
   const modeButtonRefs = {
@@ -45,90 +41,92 @@ function App() {
     localStorage.setItem('airis-camera-source', cameraSource);
   }, [cameraSource]);
 
-  useEffect(() => {
-    localStorage.setItem('airis-voice-only', String(voiceOnlyMode));
-  }, [voiceOnlyMode]);
+  // Note: Voice-only mode always defaults to OFF and is not persisted to localStorage
+  // This ensures a clean state on every page load
 
-  // Voice control setup
+  // Voice control setup - only active when voiceOnlyMode is ON
   useEffect(() => {
     const voiceControl = voiceControlRef.current;
 
-    if (voiceOnlyMode) {
-      console.log(`[App] Starting voice control listening. Mode: ${mode}, Camera: ${cameraOn}`);
-      voiceControl.startListening((command, transcript) => {
-        console.log(`[App] Voice command received: ${command} - "${transcript}"`, {
-          mode,
-          cameraOn,
-          hasActivityGuideButton: !!modeButtonRefs['Activity Guide'].current,
-          hasSceneDescriptionButton: !!modeButtonRefs['Scene Description'].current,
-          hasCameraButton: !!cameraButtonRef.current
-        });
-
-        switch (command) {
-          case 'switch_mode':
-            console.log(`[App] Processing switch_mode command`);
-            if (transcript.includes('activity guide')) {
-              if (mode !== 'Activity Guide' && modeButtonRefs['Activity Guide'].current) {
-                console.log(`[App] Switching to Activity Guide mode`);
-                modeButtonRefs['Activity Guide'].current?.click();
-              } else {
-                console.log(`[App] Cannot switch to Activity Guide:`, {
-                  currentMode: mode,
-                  hasButton: !!modeButtonRefs['Activity Guide'].current
-                });
-              }
-            } else if (transcript.includes('scene description')) {
-              if (mode !== 'Scene Description' && modeButtonRefs['Scene Description'].current) {
-                console.log(`[App] Switching to Scene Description mode`);
-                modeButtonRefs['Scene Description'].current?.click();
-              } else {
-                console.log(`[App] Cannot switch to Scene Description:`, {
-                  currentMode: mode,
-                  hasButton: !!modeButtonRefs['Scene Description'].current
-                });
-              }
-            }
-            break;
-
-          case 'camera_on':
-            console.log(`[App] Processing camera_on command`);
-            if (!cameraOn && cameraButtonRef.current) {
-              console.log(`[App] Turning camera on`);
-              cameraButtonRef.current.click();
-            } else {
-              console.log(`[App] Cannot turn camera on:`, {
-                cameraOn,
-                hasButton: !!cameraButtonRef.current
-              });
-            }
-            break;
-
-          case 'camera_off':
-            console.log(`[App] Processing camera_off command`);
-            if (cameraOn && cameraButtonRef.current) {
-              console.log(`[App] Turning camera off`);
-              cameraButtonRef.current.click();
-            } else {
-              console.log(`[App] Cannot turn camera off:`, {
-                cameraOn,
-                hasButton: !!cameraButtonRef.current
-              });
-            }
-            break;
-
-          default:
-            console.log(`[App] Unhandled command: ${command}`);
-        }
-      });
-    } else {
-      console.log(`[App] Voice-only mode disabled, stopping listening`);
+    if (!voiceOnlyMode) {
+      // Voice-only mode is OFF - stop all voice/TTS activity
+      console.log(`[App] Voice-only mode disabled, stopping all voice/TTS activity`);
       voiceControl.stopListening();
+      voiceControl.stopSpeaking();
+      return;
     }
 
-    return () => {
-      if (!voiceOnlyMode) {
-        voiceControl.stopListening();
+    // Voice-only mode is ON - start listening
+    console.log(`[App] Starting voice control listening. Mode: ${mode}, Camera: ${cameraOn}`);
+    voiceControl.startListening((command, transcript) => {
+      console.log(`[App] Voice command received: ${command} - "${transcript}"`, {
+        mode,
+        cameraOn,
+        hasActivityGuideButton: !!modeButtonRefs['Activity Guide'].current,
+        hasSceneDescriptionButton: !!modeButtonRefs['Scene Description'].current,
+        hasCameraButton: !!cameraButtonRef.current
+      });
+
+      switch (command) {
+        case 'switch_mode':
+          console.log(`[App] Processing switch_mode command`);
+          if (transcript.includes('activity guide')) {
+            if (mode !== 'Activity Guide' && modeButtonRefs['Activity Guide'].current) {
+              console.log(`[App] Switching to Activity Guide mode`);
+              modeButtonRefs['Activity Guide'].current?.click();
+            } else {
+              console.log(`[App] Cannot switch to Activity Guide:`, {
+                currentMode: mode,
+                hasButton: !!modeButtonRefs['Activity Guide'].current
+              });
+            }
+          } else if (transcript.includes('scene description')) {
+            if (mode !== 'Scene Description' && modeButtonRefs['Scene Description'].current) {
+              console.log(`[App] Switching to Scene Description mode`);
+              modeButtonRefs['Scene Description'].current?.click();
+            } else {
+              console.log(`[App] Cannot switch to Scene Description:`, {
+                currentMode: mode,
+                hasButton: !!modeButtonRefs['Scene Description'].current
+              });
+            }
+          }
+          break;
+
+        case 'camera_on':
+          console.log(`[App] Processing camera_on command`);
+          if (!cameraOn && cameraButtonRef.current) {
+            console.log(`[App] Turning camera on`);
+            cameraButtonRef.current.click();
+          } else {
+            console.log(`[App] Cannot turn camera on:`, {
+              cameraOn,
+              hasButton: !!cameraButtonRef.current
+            });
+          }
+          break;
+
+        case 'camera_off':
+          console.log(`[App] Processing camera_off command`);
+          if (cameraOn && cameraButtonRef.current) {
+            console.log(`[App] Turning camera off`);
+            cameraButtonRef.current.click();
+          } else {
+            console.log(`[App] Cannot turn camera off:`, {
+              cameraOn,
+              hasButton: !!cameraButtonRef.current
+            });
+          }
+          break;
+
+        default:
+          console.log(`[App] Unhandled command: ${command}`);
       }
+    });
+
+    return () => {
+      // Cleanup: stop listening when voice-only mode is disabled or component unmounts
+      voiceControl.stopListening();
     };
   }, [voiceOnlyMode, mode, cameraOn]);
 
@@ -184,10 +182,36 @@ function App() {
             onClick={() => {
               const newMode = !voiceOnlyMode;
               setVoiceOnlyMode(newMode);
-              setHasUserInteracted(true);
-              // Mark user interaction for audio playback
+              // Mark user interaction for audio playback when enabling voice mode
               if (newMode) {
+                // Mark interaction FIRST, then speak
                 voiceControlRef.current.markUserInteracted();
+                setHasUserInteracted(true);
+                
+                // Speak welcome message and instructions after a short delay
+                setTimeout(() => {
+                  const modeName = mode === 'Activity Guide' ? 'Activity Guide' : 'Scene Description';
+                  let welcomeMessage = `Voice mode enabled. You are in ${modeName} mode. `;
+                  
+                  if (cameraOn) {
+                    welcomeMessage += `Camera is on. `;
+                  } else {
+                    welcomeMessage += `Say "turn on camera" to start the camera. `;
+                  }
+                  
+                  if (mode === 'Activity Guide') {
+                    welcomeMessage += `Say "input task" to enter a task. Say "start task" to begin a task.`;
+                  } else {
+                    welcomeMessage += `Say "start recording" to begin scene description.`;
+                  }
+                  
+                  console.log("[App] Speaking welcome message:", welcomeMessage);
+                  voiceControlRef.current.speakText(welcomeMessage, false);
+                }, 500); // Delay to ensure everything is initialized
+              } else {
+                // When disabling, stop all voice/TTS activity
+                voiceControlRef.current.stopListening();
+                voiceControlRef.current.stopSpeaking();
               }
             }}
             title={voiceOnlyMode ? 'Disable Voice Only Mode' : 'Enable Voice Only Mode'}

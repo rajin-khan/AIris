@@ -166,9 +166,11 @@ export default function SceneDescription({
     }
   };
 
-  // Voice control setup for Scene Description
+  // Voice control setup for Scene Description - only when voice-only mode is ON
   useEffect(() => {
     if (!voiceOnlyMode) {
+      // Voice-only mode is OFF - ensure no voice activity
+      voiceControlRef.current.stopDictation();
       return;
     }
 
@@ -224,26 +226,41 @@ export default function SceneDescription({
     };
   }, [voiceOnlyMode, isRecording, cameraOn]);
 
-  // Auto-read summaries when they change (voice-only mode)
+  // Auto-read summaries when they change (voice-only mode ONLY)
+  // Summaries are the main content - always speak these
   useEffect(() => {
-    if (voiceOnlyMode && currentSummary && currentSummary !== lastSpokenSummaryRef.current) {
+    if (!voiceOnlyMode) {
+      return;
+    }
+    
+    if (currentSummary && currentSummary !== lastSpokenSummaryRef.current) {
       lastSpokenSummaryRef.current = currentSummary;
       // Interrupt previous audio and speak new summary
       voiceControlRef.current.speakText(currentSummary, true);
     }
   }, [currentSummary, voiceOnlyMode]);
 
-  // Auto-read descriptions when they change (voice-only mode)
+  // Auto-read descriptions when they change (voice-only mode ONLY)
+  // Only speak descriptions if there's NO summary AND we're not generating one
   useEffect(() => {
-    if (voiceOnlyMode && currentDescription && currentDescription !== lastSpokenDescriptionRef.current) {
-      // Only read if there's no summary (summaries are more important)
-      if (!currentSummary) {
-        lastSpokenDescriptionRef.current = currentDescription;
-        // Interrupt previous audio and speak new description
-        voiceControlRef.current.speakText(currentDescription, true);
-      }
+    if (!voiceOnlyMode) {
+      return;
     }
-  }, [currentDescription, voiceOnlyMode, currentSummary]);
+    
+    // Don't speak descriptions if:
+    // 1. There's a summary (summaries are more important)
+    // 2. We're generating a summary (one will come soon)
+    // 3. We're recording (descriptions change too frequently)
+    if (currentDescription && 
+        currentDescription !== lastSpokenDescriptionRef.current &&
+        !currentSummary && 
+        !isGeneratingSummary &&
+        !isRecording) {
+      lastSpokenDescriptionRef.current = currentDescription;
+      // Interrupt previous audio and speak new description
+      voiceControlRef.current.speakText(currentDescription, true);
+    }
+  }, [currentDescription, voiceOnlyMode, currentSummary, isGeneratingSummary, isRecording]);
 
   useEffect(() => {
     if (cameraOn) {
@@ -289,17 +306,45 @@ export default function SceneDescription({
   const startFastFrameUpdates = () => {
     if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
 
+    let lastFrameTime = 0;
+    const FRAME_INTERVAL_MS = 200; // 5 FPS - enough for smooth display, reduces server load
+
     const updateFrame = async () => {
+      const now = Date.now();
+      // Throttle frame requests to prevent resource exhaustion
+      if (now - lastFrameTime < FRAME_INTERVAL_MS) {
+        return;
+      }
+      lastFrameTime = now;
+
       try {
         const frameUrl = await apiClient.getCameraFrame();
         setFrameUrl(frameUrl);
-      } catch (error) {
-        console.error("Error getting frame:", error);
+      } catch (error: any) {
+        // Only log non-resource errors to avoid spam
+        if (error?.code !== 'ERR_INSUFFICIENT_RESOURCES' && 
+            error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') === false) {
+          console.error("Error getting frame:", error);
+        }
+        // On resource errors, increase interval temporarily
+        if (error?.code === 'ERR_INSUFFICIENT_RESOURCES' || 
+            error?.message?.includes('ERR_INSUFFICIENT_RESOURCES')) {
+          // Back off - clear and restart with longer interval
+          if (frameIntervalRef.current) {
+            clearInterval(frameIntervalRef.current);
+            frameIntervalRef.current = null;
+          }
+          setTimeout(() => {
+            if (frameIntervalRef.current === null) {
+              frameIntervalRef.current = window.setInterval(updateFrame, 500); // Slower fallback
+            }
+          }, 1000);
+        }
       }
     };
 
     updateFrame();
-    frameIntervalRef.current = window.setInterval(updateFrame, 50);
+    frameIntervalRef.current = window.setInterval(updateFrame, FRAME_INTERVAL_MS);
   };
 
   const startAnalysisInterval = () => {
@@ -386,8 +431,26 @@ export default function SceneDescription({
         setIsRecording(result.is_recording);
         setIsProcessing(false);
         setAnalysisCountdown(0.5); // Reset for 2 FPS
-      } catch (error) {
-        console.error("Error processing frame:", error);
+      } catch (error: any) {
+        // Handle resource exhaustion gracefully
+        if (error?.code === 'ERR_INSUFFICIENT_RESOURCES' || 
+            error?.message?.includes('ERR_INSUFFICIENT_RESOURCES') ||
+            error?.response?.status === 503) {
+          // Back off - increase interval temporarily
+          console.warn("[SceneDescription] Resource exhaustion detected, backing off...");
+          if (analysisIntervalRef.current) {
+            clearInterval(analysisIntervalRef.current);
+            analysisIntervalRef.current = null;
+          }
+          // Restart with longer interval after delay
+          setTimeout(() => {
+            if (isRecording && analysisIntervalRef.current === null) {
+              startAnalysisInterval(); // Will use default 3000ms interval
+            }
+          }, 5000); // Wait 5 seconds before retrying
+        } else {
+          console.error("Error processing frame:", error);
+        }
         setIsProcessing(false);
       }
     };
@@ -484,25 +547,11 @@ export default function SceneDescription({
     }
   };
 
-  const handlePlayAudio = async () => {
+  const handlePlayAudio = () => {
     const textToSpeak = currentSummary || currentDescription;
     if (!textToSpeak) return;
-
-    try {
-      const audioData = await apiClient.generateSpeech(textToSpeak);
-      const audioBlob = new Blob(
-        [Uint8Array.from(atob(audioData.audio_base64), (c) => c.charCodeAt(0))],
-        { type: "audio/mpeg" }
-      );
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play();
-      }
-    } catch (error) {
-      console.error("Error generating speech:", error);
-    }
+    // Use native TTS for instant playback
+    voiceControlRef.current.speakText(textToSpeak, true);
   };
 
   const formatTime = (seconds: number) => {

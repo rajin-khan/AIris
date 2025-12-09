@@ -278,28 +278,46 @@ async def start_task(request: TaskRequest):
 @router.post("/activity-guide/process-frame")
 async def process_activity_frame():
     """Process a frame for activity guide mode"""
-    camera_service = get_camera_service()
-    activity_guide_service = get_activity_guide_service()
-    frame = await camera_service.get_frame()
-    if frame is None:
-        raise HTTPException(status_code=404, detail="No frame available")
-    
-    result = await activity_guide_service.process_frame(frame)
-    
-    # Encode processed frame (always process, even when idle, to show YOLO boxes)
-    processed_frame = result.get("annotated_frame", frame)
-    _, buffer = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
-    frame_bytes = buffer.tobytes()
-    frame_base64 = base64.b64encode(frame_bytes).decode()
-    
-    return {
-        "frame": frame_base64,
-        "guidance": result.get("guidance"),
-        "stage": result.get("stage"),
-        "instruction": result.get("instruction"),
-        "detected_objects": result.get("detected_objects", []),
-        "hand_detected": result.get("hand_detected", False)
-    }
+    try:
+        camera_service = get_camera_service()
+        activity_guide_service = get_activity_guide_service()
+        frame = await camera_service.get_frame()
+        if frame is None:
+            raise HTTPException(status_code=404, detail="No frame available")
+        
+        result = await activity_guide_service.process_frame(frame)
+        
+        # Encode processed frame (always process, even when idle, to show YOLO boxes)
+        processed_frame = result.get("annotated_frame", frame)
+        if processed_frame is None:
+            processed_frame = frame
+        
+        try:
+            _, buffer = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            frame_bytes = buffer.tobytes()
+            frame_base64 = base64.b64encode(frame_bytes).decode()
+        except Exception as e:
+            print(f"Error encoding frame: {e}")
+            # Fallback: encode original frame
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+            frame_bytes = buffer.tobytes()
+            frame_base64 = base64.b64encode(frame_bytes).decode()
+        
+        return {
+            "frame": frame_base64,
+            "guidance": result.get("guidance"),
+            "stage": result.get("stage"),
+            "instruction": result.get("instruction"),
+            "detected_objects": result.get("detected_objects", []),
+            "hand_detected": result.get("hand_detected", False)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in process_activity_frame: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error processing frame: {str(e)}")
 
 @router.post("/activity-guide/feedback")
 async def submit_feedback(request: FeedbackRequest):

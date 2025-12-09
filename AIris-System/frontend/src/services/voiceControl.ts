@@ -63,12 +63,14 @@ export class VoiceControlService {
   private recognition: SpeechRecognition | null = null;
   private isListening = false;
   private isDictationMode = false;
-  private currentAudio: HTMLAudioElement | null = null;
+  private currentUtterance: SpeechSynthesisUtterance | null = null;
   private commandCallback: VoiceCommandCallback | null = null;
   private dictationCallback: DictationCallback | null = null;
   private isSpeaking = false;
   private commandCallbacks: Set<VoiceCommandCallback> = new Set();
   private hasUserInteracted = false;
+  private lastSpeakTime = 0;
+  private speakDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     this.initializeRecognition();
@@ -106,7 +108,20 @@ export class VoiceControlService {
 
         if (this.isDictationMode) {
           // In dictation mode, check for "start task" command first (with fuzzy matching)
-          if (this.fuzzyMatch(transcript, ["start task", "start desk"])) {
+          if (this.fuzzyMatch(transcript, [
+            "start task",
+            "start desk",
+            "start ask",
+            "start tusk",
+            "star task",
+            "star desk",
+            "stuck task",
+            "stuck desk",
+            "stat task",
+            "stat desk",
+            "start a task",
+            "start task status"
+          ])) {
             console.log(`[VoiceControl] Detected "start task" command in dictation mode, exiting dictation`);
             // Exit dictation mode
             this.isDictationMode = false;
@@ -179,14 +194,37 @@ export class VoiceControlService {
       };
 
       this.recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-        console.error(`[VoiceControl] Speech recognition error:`, {
+        const errorDetails = {
           error: event.error,
           message: event.message,
           isListening: this.isListening,
           isDictationMode: this.isDictationMode
-        });
+        };
+        console.error(`[VoiceControl] Speech recognition error:`, errorDetails);
+        
         if (event.error === "not-allowed") {
           console.error("[VoiceControl] Microphone permission denied");
+          this.isListening = false; // Stop trying if permission denied
+        } else if (event.error === "no-speech") {
+          // This is normal - just means no speech detected, don't log as error
+          return;
+        } else if (event.error === "aborted") {
+          // Recognition was aborted (probably by us) - this is expected
+          return;
+        } else if (event.error === "network") {
+          console.error("[VoiceControl] Network error in speech recognition");
+          // Don't auto-restart on network errors - wait a bit
+          this.isListening = false;
+          setTimeout(() => {
+            if (!this.isDictationMode && this.recognition) {
+              try {
+                this.isListening = true;
+                this.recognition.start();
+              } catch (e) {
+                console.error("[VoiceControl] Failed to restart after network error:", e);
+              }
+            }
+          }, 2000); // Wait 2 seconds before retrying
         }
       };
 
@@ -196,18 +234,32 @@ export class VoiceControlService {
           isDictationMode: this.isDictationMode,
           willRestart: this.isListening && !this.isDictationMode
         });
-        // Auto-restart if we're supposed to be listening
-        if (this.isListening && !this.isDictationMode) {
+        // Auto-restart logic:
+        // - Command mode: auto-restart if isListening is true
+        // - Dictation mode: auto-restart if isListening is true (startDictation also handles this)
+        // - Don't restart if isListening is false (we're stopping)
+        if (this.isListening && this.recognition) {
           setTimeout(() => {
+            // Double-check state before restarting (might have changed during timeout)
             if (this.isListening && this.recognition) {
               try {
-                console.log(`[VoiceControl] Auto-restarting recognition`);
+                const mode = this.isDictationMode ? 'dictation' : 'command';
+                console.log(`[VoiceControl] Auto-restarting recognition (${mode} mode)`);
                 this.recognition.start();
               } catch (e) {
-                console.error("[VoiceControl] Failed to restart recognition:", e);
+                // If it's already started, that's fine - ignore InvalidStateError
+                if (e instanceof Error && e.name !== 'InvalidStateError') {
+                  const mode = this.isDictationMode ? 'dictation' : 'command';
+                  console.error(`[VoiceControl] Failed to restart recognition (${mode} mode):`, e);
+                  // If restart fails with certain errors, stop trying to prevent infinite loops
+                  if (e.name === 'NotAllowedError' || e.name === 'AbortError') {
+                    console.warn(`[VoiceControl] Stopping recognition due to ${e.name}`);
+                    this.isListening = false;
+                  }
+                }
               }
             }
-          }, 100);
+          }, 100); // Reduced delay for faster response
         }
       };
 
@@ -220,38 +272,76 @@ export class VoiceControlService {
 
   // Helper function for fuzzy string matching (handles common misrecognitions)
   private fuzzyMatch(transcript: string, patterns: string[]): boolean {
-    const lowerTranscript = transcript.toLowerCase();
+    const lowerTranscript = transcript.toLowerCase().trim();
     
     for (const pattern of patterns) {
-      const lowerPattern = pattern.toLowerCase();
+      const lowerPattern = pattern.toLowerCase().trim();
+      
       // Exact match
       if (lowerTranscript === lowerPattern || lowerTranscript.includes(lowerPattern)) {
         return true;
       }
       
-      // Fuzzy matching for common misrecognitions
-      // "scene" vs "seen"
-      if (lowerPattern.includes("scene") && (lowerTranscript.includes("seen") || lowerTranscript.includes("scene"))) {
-        const rest = lowerPattern.replace("scene", "").trim();
-        if (rest === "" || lowerTranscript.includes(rest)) {
-          return true;
+      // Check if transcript contains the pattern (even with extra words)
+      if (lowerTranscript.includes(lowerPattern)) {
+        return true;
+      }
+      
+      // Check if pattern contains the transcript (for partial matches)
+      if (lowerPattern.includes(lowerTranscript)) {
+        return true;
+      }
+      
+      // Word-by-word fuzzy matching for common misrecognitions
+      const patternWords = lowerPattern.split(/\s+/);
+      const transcriptWords = lowerTranscript.split(/\s+/);
+      
+      // Check if all pattern words have matches in transcript (allowing for extra words)
+      let matchedWords = 0;
+      for (const patternWord of patternWords) {
+        for (const transcriptWord of transcriptWords) {
+          // Exact word match
+          if (patternWord === transcriptWord) {
+            matchedWords++;
+            break;
+          }
+          
+          // Check common misrecognitions
+          const misrecognitions: Record<string, string[]> = {
+            "scene": ["seen", "sean", "see", "sea", "sin"],
+            "description": ["discription", "desk ription"],
+            "camera": ["camra", "cam era", "camer"],
+            "on": ["own", "an"],
+            "off": ["of"],
+            "task": ["desk", "ask", "tusk", "tax", "podcast"],
+            "start": ["star", "stuck", "stat"],
+            "stop": ["stap", "stopp", "stob"],
+            "recording": ["record", "record in", "record ing"],
+            "enter": ["inner"],
+            "input": ["in put", "inpoot", "in putt", "in the", "importance"],
+            "guide": ["guy", "good", "guyed"],
+            "yes": ["yeah", "yep", "yea", "yas"],
+            "no": ["know", "now", "nope"]
+          };
+          
+          if (misrecognitions[patternWord]) {
+            if (misrecognitions[patternWord].some(mis => transcriptWord.includes(mis) || mis.includes(transcriptWord))) {
+              matchedWords++;
+              break;
+            }
+          }
+          
+          // Check if words are similar (one contains the other)
+          if (patternWord.includes(transcriptWord) || transcriptWord.includes(patternWord)) {
+            matchedWords++;
+            break;
+          }
         }
       }
       
-      // "off" vs "of"
-      if (lowerPattern.includes(" off") && lowerTranscript.includes(" of")) {
-        const before = lowerPattern.split(" off")[0];
-        if (lowerTranscript.includes(before + " of")) {
-          return true;
-        }
-      }
-      
-      // "task" vs "desk"
-      if (lowerPattern.includes("task") && lowerTranscript.includes("desk")) {
-        const before = lowerPattern.split("task")[0];
-        if (lowerTranscript.includes(before + "desk")) {
-          return true;
-        }
+      // If most words match (70% threshold), consider it a match
+      if (matchedWords >= Math.ceil(patternWords.length * 0.7)) {
+        return true;
       }
     }
     
@@ -281,7 +371,13 @@ export class VoiceControlService {
     }
 
     // Reserved keywords for mode switching (with fuzzy matching)
-    if (this.fuzzyMatch(transcript, ["activity guide"])) {
+    if (this.fuzzyMatch(transcript, [
+      "activity guide",
+      "activity guy",
+      "activity good",
+      "act of tea guide",
+      "act of t guide"
+    ])) {
       console.log(`[VoiceControl] Matched command: switch_mode (activity guide)`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length}`);
@@ -294,7 +390,17 @@ export class VoiceControlService {
       return;
     }
 
-    if (this.fuzzyMatch(transcript, ["scene description", "seen description"])) {
+    if (this.fuzzyMatch(transcript, [
+      "scene description",
+      "seen description",
+      "sean description",
+      "see description",
+      "sea description",
+      "scene discription",
+      "seen discription",
+      "sin description",
+      "scene desk ription"
+    ])) {
       console.log(`[VoiceControl] Matched command: switch_mode (scene description)`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length}`);
@@ -308,7 +414,19 @@ export class VoiceControlService {
     }
 
     // Camera commands (with fuzzy matching)
-    if (this.fuzzyMatch(transcript, ["turn on camera", "start camera", "camera on"])) {
+    if (this.fuzzyMatch(transcript, [
+      "turn on camera",
+      "start camera",
+      "camera on",
+      "camera own",
+      "camera an",
+      "camra on",
+      "cam era on",
+      "turn on camra",
+      "start camra",
+      "turn own camera",
+      "turn an camera"
+    ])) {
       console.log(`[VoiceControl] Matched command: camera_on`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for camera_on`);
@@ -321,7 +439,19 @@ export class VoiceControlService {
       return;
     }
 
-    if (this.fuzzyMatch(transcript, ["turn off camera", "stop camera", "camera off", "camera of"])) {
+    if (this.fuzzyMatch(transcript, [
+      "turn off camera",
+      "stop camera",
+      "camera off",
+      "camera of",
+      "camra off",
+      "camra of",
+      "cam era off",
+      "turn of camera",
+      "turn off camra",
+      "turn of camra",
+      "stop camra"
+    ])) {
       console.log(`[VoiceControl] Matched command: camera_off`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for camera_off`);
@@ -335,7 +465,23 @@ export class VoiceControlService {
     }
 
     // Activity Guide commands (with fuzzy matching)
-    if (this.fuzzyMatch(transcript, ["enter task", "input task", "enter desk", "input desk"])) {
+    if (this.fuzzyMatch(transcript, [
+      "enter task",
+      "input task",
+      "enter desk",
+      "input desk",
+      "enter ask",
+      "input ask",
+      "enter tusk",
+      "input tusk",
+      "inner task",
+      "in put task",
+      "enter tax",
+      "input tax",
+      "in the task",
+      "in podcast",
+      "importance"
+    ])) {
       console.log(`[VoiceControl] Matched command: enter_task`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for enter_task`);
@@ -348,7 +494,20 @@ export class VoiceControlService {
       return;
     }
 
-    if (this.fuzzyMatch(transcript, ["start task", "start desk"])) {
+    if (this.fuzzyMatch(transcript, [
+      "start task",
+      "start desk",
+      "start ask",
+      "start tusk",
+      "star task",
+      "star desk",
+      "stuck task",
+      "stuck desk",
+      "stat task",
+      "stat desk",
+      "start a task",
+      "start task status"
+    ])) {
       console.log(`[VoiceControl] Matched command: start_task`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for start_task`);
@@ -362,7 +521,15 @@ export class VoiceControlService {
     }
 
     // Scene Description commands
-    if (this.fuzzyMatch(transcript, ["start recording"])) {
+    if (this.fuzzyMatch(transcript, [
+      "start recording",
+      "star recording",
+      "start record",
+      "start record in",
+      "star record",
+      "stuck recording",
+      "stat recording"
+    ])) {
       console.log(`[VoiceControl] Matched command: start_recording`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for start_recording`);
@@ -375,7 +542,14 @@ export class VoiceControlService {
       return;
     }
 
-    if (this.fuzzyMatch(transcript, ["stop recording"])) {
+    if (this.fuzzyMatch(transcript, [
+      "stop recording",
+      "stap recording",
+      "stop record",
+      "stap record",
+      "stopp recording",
+      "stob recording"
+    ])) {
       console.log(`[VoiceControl] Matched command: stop_recording`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for stop_recording`);
@@ -388,8 +562,8 @@ export class VoiceControlService {
       return;
     }
 
-    // Confirmation commands
-    if (transcript === "yes" || transcript.includes("yes")) {
+    // Confirmation commands (with fuzzy matching)
+    if (this.fuzzyMatch(transcript, ["yes", "yeah", "yep", "yea", "yas"])) {
       console.log(`[VoiceControl] Matched command: yes`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for yes`);
@@ -402,7 +576,7 @@ export class VoiceControlService {
       return;
     }
 
-    if (transcript === "no" || transcript.includes("no")) {
+    if (this.fuzzyMatch(transcript, ["no", "know", "now", "nope"])) {
       console.log(`[VoiceControl] Matched command: no`);
       callbacks.forEach((cb, idx) => {
         console.log(`[VoiceControl] Calling callback ${idx + 1}/${callbacks.length} for no`);
@@ -523,10 +697,14 @@ export class VoiceControlService {
       return false;
     }
 
+    // Set dictation mode FIRST to prevent auto-restart in onend handler
+    this.dictationCallback = onDictation;
+    this.isDictationMode = true;
+
     // Stop current listening if active - wait for it to fully stop
     if (this.isListening) {
       console.log(`[VoiceControl] Stopping current recognition before starting dictation`);
-      this.isListening = false; // Mark as not listening first
+      this.isListening = false; // Mark as not listening
       try {
         this.recognition.stop();
         this.recognition.abort(); // Force abort to ensure it stops
@@ -535,35 +713,41 @@ export class VoiceControlService {
       }
     }
 
-    this.dictationCallback = onDictation;
-    this.isDictationMode = true;
-
-    // Wait longer for recognition to fully stop before restarting
-    setTimeout(() => {
-      if (this.recognition && this.isDictationMode) {
-        try {
-          console.log(`[VoiceControl] Starting dictation recognition...`);
-          this.isListening = true;
-          this.recognition.start();
-          console.log(`[VoiceControl] Dictation recognition started`);
-        } catch (error: any) {
-          console.error("[VoiceControl] Failed to start dictation:", error);
-          // If already started error, that's okay - it means recognition is running
-          if (error?.name === 'InvalidStateError') {
-            console.log("[VoiceControl] Recognition already running, continuing with dictation mode");
-            this.isListening = true;
-          } else {
-            this.isListening = false;
-            this.isDictationMode = false;
-          }
-        }
-      } else {
-        console.warn(`[VoiceControl] Cannot start dictation - recognition or mode changed`, {
-          hasRecognition: !!this.recognition,
-          isDictationMode: this.isDictationMode
-        });
+    // Wait for recognition to fully stop before restarting in dictation mode
+    const startDictationRecognition = () => {
+      if (!this.recognition || !this.isDictationMode) {
+        console.warn(`[VoiceControl] Cannot start dictation - recognition or mode changed`);
+        return;
       }
-    }, 500); // Increased delay to ensure recognition fully stops
+
+      try {
+        this.recognition.start();
+        this.isListening = true;
+        console.log(`[VoiceControl] Dictation recognition started`);
+      } catch (error: any) {
+        if (error?.name === 'InvalidStateError') {
+          // Recognition is already running - that's fine, we're in dictation mode now
+          console.log("[VoiceControl] Recognition already running, continuing with dictation mode");
+          this.isListening = true;
+        } else {
+          console.error("[VoiceControl] Failed to start dictation:", error);
+          this.isListening = false;
+          this.isDictationMode = false;
+        }
+      }
+    };
+
+    // If recognition was already stopped, start immediately for faster response
+    // Otherwise wait for it to stop (onend handler will fire)
+    if (!this.isListening) {
+      // Recognition is already stopped, start immediately
+      startDictationRecognition();
+    } else {
+      // Wait for recognition to fully stop (onend will fire)
+      // The onend handler will see isDictationMode=true and handle restart
+      // But we also start it manually after a short delay as backup
+      setTimeout(startDictationRecognition, 200); // Reduced delay for faster response
+    }
     return true;
   }
 
@@ -618,99 +802,131 @@ export class VoiceControlService {
   }
 
   async speakText(text: string, interrupt: boolean = true): Promise<void> {
-    if (interrupt && this.currentAudio) {
-      // Stop current audio immediately
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
-      this.currentAudio = null;
-      this.isSpeaking = false;
-    }
-
-    if (!text || text.trim() === "") return;
-
-    // Don't try to play audio if user hasn't interacted yet
-    if (!this.hasUserInteracted) {
-      console.log("Skipping audio playback - user hasn't interacted yet");
+    // Check if SpeechSynthesis is available
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
+      console.warn("SpeechSynthesis not supported in this browser");
       return;
     }
 
-    try {
-      // Use the existing TTS API (same as apiClient.generateSpeech)
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-      const response = await fetch(
-        `${apiBaseUrl}/api/v1/tts/generate?text=${encodeURIComponent(text)}`,
-        { 
-          method: "POST",
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        }
-      );
+    if (!text || text.trim() === "") {
+      console.log("[VoiceControl] speakText: Empty text, skipping");
+      return;
+    }
 
-      if (!response.ok) {
-        console.error("TTS API error:", response.statusText);
-        return;
-      }
+    // Don't try to play audio if user hasn't interacted yet
+    // This prevents autoplay restrictions - user must enable voice-only mode first
+    if (!this.hasUserInteracted) {
+      console.log("[VoiceControl] speakText: User hasn't interacted yet, skipping:", text.substring(0, 50));
+      return;
+    }
 
-      const data = await response.json();
-      const audioBlob = new Blob(
-        [
-          Uint8Array.from(
-            atob(data.audio_base64),
-            (c) => c.charCodeAt(0)
-          ),
-        ],
-        { type: "audio/mpeg" }
-      );
+    // Debounce rapid TTS calls to prevent overwhelming the system
+    // If called within 500ms of last call, cancel previous and schedule new one
+    const now = Date.now();
+    if (this.speakDebounceTimer) {
+      clearTimeout(this.speakDebounceTimer);
+      this.speakDebounceTimer = null;
+    }
 
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-
-      this.currentAudio = audio;
-      this.isSpeaking = true;
-
-      audio.onended = () => {
-        this.isSpeaking = false;
-        this.currentAudio = null;
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      audio.onerror = () => {
-        this.isSpeaking = false;
-        this.currentAudio = null;
-        URL.revokeObjectURL(audioUrl);
-      };
-
-      try {
-        await audio.play();
-      } catch (playError: any) {
-        // Handle autoplay restrictions gracefully
-        if (playError.name === 'NotAllowedError' || playError.name === 'NotSupportedError') {
-          console.log("Audio autoplay blocked - user interaction required");
-          this.hasUserInteracted = false; // Reset flag
-        } else {
-          throw playError;
-        }
-        this.isSpeaking = false;
-        this.currentAudio = null;
-        URL.revokeObjectURL(audioUrl);
-      }
-    } catch (error) {
-      // Only log non-autoplay errors
-      if (error instanceof Error && error.name !== 'NotAllowedError') {
-        console.error("Error speaking text:", error);
-      }
+    // If we're already speaking and this is an interrupt, cancel immediately
+    if (interrupt && this.isSpeaking) {
+      window.speechSynthesis.cancel();
       this.isSpeaking = false;
-      this.currentAudio = null;
+      this.currentUtterance = null;
+    }
+
+    // Debounce: if called too soon after last speak, wait a bit
+    const timeSinceLastSpeak = now - this.lastSpeakTime;
+    const DEBOUNCE_MS = 300; // Minimum time between TTS calls
+
+    if (timeSinceLastSpeak < DEBOUNCE_MS && !interrupt) {
+      // Schedule to speak after debounce period
+      this.speakDebounceTimer = setTimeout(() => {
+        this._doSpeak(text, interrupt);
+        this.speakDebounceTimer = null;
+      }, DEBOUNCE_MS - timeSinceLastSpeak);
+      return;
+    }
+
+    // Speak immediately
+    this._doSpeak(text, interrupt);
+  }
+
+  private _doSpeak(text: string, interrupt: boolean): void {
+    console.log("[VoiceControl] speakText: Speaking text:", text.substring(0, 100));
+    this.lastSpeakTime = Date.now();
+
+    // Cancel any ongoing speech if interrupt is true
+    if (interrupt) {
+      window.speechSynthesis.cancel();
+      this.isSpeaking = false;
+      this.currentUtterance = null;
+    }
+
+    try {
+      // Create a new utterance
+      const utterance = new SpeechSynthesisUtterance(text.trim());
+      
+      // Configure voice settings
+      utterance.rate = 1.0; // Normal speed
+      utterance.pitch = 1.0; // Normal pitch
+      utterance.volume = 1.0; // Full volume
+
+      // Set up event handlers
+      utterance.onstart = () => {
+        this.isSpeaking = true;
+        this.currentUtterance = utterance;
+      };
+
+      utterance.onend = () => {
+        this.isSpeaking = false;
+        // Only clear if this is still the current utterance
+        if (this.currentUtterance === utterance) {
+          this.currentUtterance = null;
+        }
+      };
+
+      utterance.onerror = (event) => {
+        // Filter out expected errors (interrupted/canceled are normal when interrupting)
+        const error = event.error;
+        if (error === 'interrupted' || error === 'canceled') {
+          // These are expected when interrupting speech - don't log as errors
+          this.isSpeaking = false;
+          if (this.currentUtterance === utterance) {
+            this.currentUtterance = null;
+          }
+          return;
+        }
+        
+        // Log only unexpected errors
+        console.error("SpeechSynthesis error:", error);
+        this.isSpeaking = false;
+        if (this.currentUtterance === utterance) {
+          this.currentUtterance = null;
+        }
+      };
+
+      // Store reference and speak
+      this.currentUtterance = utterance;
+      window.speechSynthesis.speak(utterance);
+    } catch (error) {
+      console.error("Error speaking text:", error);
+      this.isSpeaking = false;
+      this.currentUtterance = null;
     }
   }
 
   stopSpeaking(): void {
-    if (this.currentAudio) {
-      this.currentAudio.pause();
-      this.currentAudio.currentTime = 0;
-      this.currentAudio = null;
+    // Clear any pending debounced speech
+    if (this.speakDebounceTimer) {
+      clearTimeout(this.speakDebounceTimer);
+      this.speakDebounceTimer = null;
+    }
+    
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
       this.isSpeaking = false;
+      this.currentUtterance = null;
     }
   }
 
@@ -728,6 +944,15 @@ export class VoiceControlService {
     this.commandCallback = null;
     this.dictationCallback = null;
     this.commandCallbacks.clear();
+    // Clear debounce timer
+    if (this.speakDebounceTimer) {
+      clearTimeout(this.speakDebounceTimer);
+      this.speakDebounceTimer = null;
+    }
+    // Ensure SpeechSynthesis is fully stopped
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
   }
 }
 

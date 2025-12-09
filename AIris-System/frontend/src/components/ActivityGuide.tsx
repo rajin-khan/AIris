@@ -98,7 +98,10 @@ const stageBadgeColors: Record<string, string> = {
   DONE: "bg-green-600",
 };
 
-export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: ActivityGuideProps) {
+export default function ActivityGuide({
+  cameraOn,
+  voiceOnlyMode = false,
+}: ActivityGuideProps) {
   const [taskInput, setTaskInput] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentInstruction, setCurrentInstruction] = useState(
@@ -117,7 +120,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
   const frameIntervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastInstructionRef = useRef<string>("");
-  
+
   // Refs for voice control
   const taskInputRef = useRef<HTMLInputElement>(null);
   const micButtonRef = useRef<HTMLButtonElement>(null);
@@ -167,18 +170,32 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     setGuidanceLog([]);
   }, []);
 
-  // Auto-read instructions when they change (voice-only mode)
+  // Auto-read instructions when they change (voice-only mode ONLY)
   useEffect(() => {
-    if (voiceOnlyMode && currentInstruction && currentInstruction !== lastSpokenInstructionRef.current) {
+    if (!voiceOnlyMode) {
+      // Voice-only mode is OFF - don't speak
+      return;
+    }
+
+    if (
+      currentInstruction &&
+      currentInstruction !== lastSpokenInstructionRef.current &&
+      currentInstruction !== "Start the camera and enter a task." // Skip default message
+    ) {
       lastSpokenInstructionRef.current = currentInstruction;
       // Interrupt previous audio and speak new instruction
       voiceControlRef.current.speakText(currentInstruction, true);
     }
   }, [currentInstruction, voiceOnlyMode]);
 
-  // Auto-read confirmation question when awaiting feedback (voice-only mode)
+  // Auto-read confirmation question when awaiting feedback (voice-only mode ONLY)
   useEffect(() => {
-    if (voiceOnlyMode && awaitingFeedback && currentInstruction) {
+    if (!voiceOnlyMode) {
+      // Voice-only mode is OFF - don't speak
+      return;
+    }
+
+    if (awaitingFeedback && currentInstruction) {
       // Read the confirmation question
       voiceControlRef.current.speakText(currentInstruction, true);
     }
@@ -196,16 +213,21 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     const voiceControl = voiceControlRef.current;
 
     // Register command callback (don't start a new listener - App.tsx manages it)
-    console.log(`[ActivityGuide] Registering voice command callback. Voice-only mode: ${voiceOnlyMode}`);
+    console.log(
+      `[ActivityGuide] Registering voice command callback. Voice-only mode: ${voiceOnlyMode}`
+    );
     const unregister = voiceControl.registerCommandCallback(
       (command, transcript) => {
-        console.log(`[ActivityGuide] Voice command received: ${command} - "${transcript}"`, {
-          isProcessing,
-          cameraOn,
-          isInDictationMode: isInDictationModeRef.current,
-          awaitingFeedback,
-          taskInput: taskInput.substring(0, 50) + "..."
-        });
+        console.log(
+          `[ActivityGuide] Voice command received: ${command} - "${transcript}"`,
+          {
+            isProcessing,
+            cameraOn,
+            isInDictationMode: isInDictationModeRef.current,
+            awaitingFeedback,
+            taskInput: taskInput.substring(0, 50) + "...",
+          }
+        );
 
         switch (command) {
           case "enter_task":
@@ -217,7 +239,9 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
               // Clear existing input when starting dictation
               setTaskInput("");
               voiceControl.startDictation((dictatedText) => {
-                console.log(`[ActivityGuide] Dictation text received: "${dictatedText}"`);
+                console.log(
+                  `[ActivityGuide] Dictation text received: "${dictatedText}"`
+                );
                 // Update input field in real-time as user speaks
                 // The dictatedText is the full phrase from Web Speech API
                 setTaskInput((prev) => {
@@ -226,7 +250,11 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
                   // If the new text is longer or different, use it
                   if (newText) {
                     // If previous text is empty or new text doesn't contain previous, append
-                    if (!prev || (!newText.toLowerCase().includes(prev.toLowerCase()) && !prev.toLowerCase().includes(newText.toLowerCase()))) {
+                    if (
+                      !prev ||
+                      (!newText.toLowerCase().includes(prev.toLowerCase()) &&
+                        !prev.toLowerCase().includes(newText.toLowerCase()))
+                    ) {
                       return prev ? prev + " " + newText : newText;
                     }
                     // If new text contains previous, use new text (it's more complete)
@@ -242,7 +270,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
               console.log(`[ActivityGuide] Cannot start dictation:`, {
                 isInDictationMode: isInDictationModeRef.current,
                 isProcessing,
-                cameraOn
+                cameraOn,
               });
             }
             break;
@@ -257,13 +285,15 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
             }
             // Start task if we have input
             if (!isProcessing && taskInput.trim()) {
-              console.log(`[ActivityGuide] Starting task with input: "${taskInput}"`);
+              console.log(
+                `[ActivityGuide] Starting task with input: "${taskInput}"`
+              );
               handleStartTask();
             } else {
               console.log(`[ActivityGuide] Cannot start task:`, {
                 isProcessing,
                 hasInput: !!taskInput.trim(),
-                taskInput: taskInput.substring(0, 50)
+                taskInput: taskInput.substring(0, 50),
               });
             }
             break;
@@ -277,7 +307,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
             } else {
               console.log(`[ActivityGuide] Cannot click yes:`, {
                 awaitingFeedback,
-                hasButton: !!yesButtonRef.current
+                hasButton: !!yesButtonRef.current,
               });
             }
             break;
@@ -291,7 +321,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
             } else {
               console.log(`[ActivityGuide] Cannot click no:`, {
                 awaitingFeedback,
-                hasButton: !!noButtonRef.current
+                hasButton: !!noButtonRef.current,
               });
             }
             break;
@@ -322,10 +352,35 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
   const startFrameProcessing = () => {
     if (frameIntervalRef.current) return;
 
+    let consecutiveErrors = 0;
+    let lastFrameTime = 0;
+    const FRAME_INTERVAL_MS = 100; // 10 FPS - smooth video feed
+    const MAX_CONSECUTIVE_ERRORS = 5;
+
     const processFrame = async () => {
+      // Stop if camera is off
+      if (!cameraOn) {
+        if (frameIntervalRef.current) {
+          clearInterval(frameIntervalRef.current);
+          frameIntervalRef.current = null;
+        }
+        return;
+      }
+
+      const now = Date.now();
+      // Throttle to prevent overwhelming the backend
+      if (now - lastFrameTime < FRAME_INTERVAL_MS) {
+        return;
+      }
+      lastFrameTime = now;
+
       try {
         // Always use process-frame endpoint to get annotated frames with YOLO boxes and hand tracking
         const result = await apiClient.processActivityFrame();
+
+        // Reset error counter on success
+        consecutiveErrors = 0;
+
         setFrameUrl(`data:image/jpeg;base64,${result.frame}`);
         setCurrentInstruction(result.instruction);
         setStage(result.stage);
@@ -344,8 +399,66 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
         if (result.stage === "AWAITING_FEEDBACK") {
           setAwaitingFeedback(true);
         }
-      } catch (error) {
-        console.error("Error processing frame:", error);
+      } catch (error: any) {
+        consecutiveErrors++;
+
+        // Check for specific error types (Axios errors have error.code, error.response, etc.)
+        const errorCode = error?.code || error?.response?.status || "";
+        const errorMessage = error?.message || String(error) || "";
+        const isResourceError =
+          errorCode === "ERR_EMPTY_RESPONSE" ||
+          errorCode === "ERR_INSUFFICIENT_RESOURCES" ||
+          errorCode === 503 ||
+          errorCode === 500 ||
+          errorMessage.includes("ERR_EMPTY_RESPONSE") ||
+          errorMessage.includes("ERR_INSUFFICIENT_RESOURCES") ||
+          errorMessage.includes("Network Error") ||
+          (error?.response?.status >= 500 && error?.response?.status < 600);
+
+        if (isResourceError) {
+          // Backend is overwhelmed or crashed - back off
+          console.warn(
+            `[ActivityGuide] Backend resource error (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}):`,
+            {
+              code: errorCode,
+              message: errorMessage,
+              status: error?.response?.status,
+            }
+          );
+
+          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            // Too many errors - stop processing and wait
+            console.error(
+              "[ActivityGuide] Too many consecutive errors, stopping frame processing"
+            );
+            if (frameIntervalRef.current) {
+              clearInterval(frameIntervalRef.current);
+              frameIntervalRef.current = null;
+            }
+            // Restart after delay
+            setTimeout(() => {
+              if (cameraOn && frameIntervalRef.current === null) {
+                console.log(
+                  "[ActivityGuide] Retrying frame processing after backoff"
+                );
+                consecutiveErrors = 0;
+                startFrameProcessing();
+              }
+            }, 5000); // Wait 5 seconds before retrying
+            return;
+          }
+        } else {
+          // Other errors - log but continue (reset counter after a few non-resource errors)
+          if (consecutiveErrors > 3) {
+            console.error("Error processing frame:", {
+              error,
+              code: errorCode,
+              message: errorMessage,
+              status: error?.response?.status,
+            });
+            consecutiveErrors = 0; // Reset after logging to prevent false positives
+          }
+        }
       }
     };
 
@@ -429,24 +542,10 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
     }
   };
 
-  const handlePlayAudio = async () => {
+  const handlePlayAudio = () => {
     if (!currentInstruction) return;
-
-    try {
-      const audioData = await apiClient.generateSpeech(currentInstruction);
-      const audioBlob = new Blob(
-        [Uint8Array.from(atob(audioData.audio_base64), (c) => c.charCodeAt(0))],
-        { type: "audio/mpeg" }
-      );
-      const audioUrl = URL.createObjectURL(audioBlob);
-
-      if (audioRef.current) {
-        audioRef.current.src = audioUrl;
-        audioRef.current.play();
-      }
-    } catch (error) {
-      console.error("Error generating speech:", error);
-    }
+    // Use native TTS for instant playback
+    voiceControlRef.current.speakText(currentInstruction, true);
   };
 
   return (
@@ -529,7 +628,11 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
                       ? "bg-red-600 text-white animate-pulse"
                       : "text-dark-text-secondary hover:text-brand-gold hover:bg-dark-surface"
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  title={isInDictationModeRef.current ? "Stop listening" : "Start voice input"}
+                  title={
+                    isInDictationModeRef.current
+                      ? "Stop listening"
+                      : "Start voice input"
+                  }
                 >
                   {isInDictationModeRef.current ? (
                     <MicOff className="w-4 h-4" />
@@ -539,8 +642,11 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
                 </button>
               )}
               {voiceOnlyMode && (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-gold pointer-events-none">
-                  <Mic className="w-4 h-4 animate-pulse" title="Voice-only mode active - say 'input task' to start dictation" />
+                <div
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-brand-gold pointer-events-none"
+                  title="Voice-only mode active - say 'input task' to start dictation"
+                >
+                  <Mic className="w-4 h-4 animate-pulse" />
                 </div>
               )}
             </div>
@@ -568,9 +674,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
                   🎤 Listening... Speak your task now. Click mic again to stop.
                 </span>
               ) : (
-                <span>
-                  💡 Click the microphone icon to use voice input
-                </span>
+                <span>💡 Click the microphone icon to use voice input</span>
               )}
             </p>
           )}
@@ -581,9 +685,7 @@ export default function ActivityGuide({ cameraOn, voiceOnlyMode = false }: Activ
                   🎤 Dictation active... Say "start task" when done.
                 </span>
               ) : (
-                <span>
-                  💡 Say "input task" to start voice input
-                </span>
+                <span>💡 Say "input task" to start voice input</span>
               )}
             </p>
           )}
