@@ -22,12 +22,12 @@ Current visual assistance solutions suffer from:
 - Limited real-time capabilities
 
 ### Solution
-A purpose-built wearable device providing:
+A computer-based software system providing:
 - **Active Guidance** — Audio instructions to find and reach specific objects
 - **Scene Description** — Continuous environment awareness with safety alerts
-- **Wireless Design** — ESP32 camera (WiFi) + Arduino audio (Bluetooth)
-- **Privacy-First** — All AI processing on user's local server
-- **Hands-Free** — Physical buttons, no screen interaction required
+- **Hands-Free Operation** — Voice commands via Handsfree Mode, no screen interaction required
+- **Optional Accessories** — ESP32 camera (WiFi) + Bluetooth mic/headphone for wireless operation
+- **Privacy-First** — All AI processing on user's local computer
 
 ---
 
@@ -37,12 +37,11 @@ A purpose-built wearable device providing:
 
 | Component | Specification | Purpose |
 |:----------|:--------------|:--------|
-| **Camera** | ESP32-CAM | Video capture, WiFi streaming to server |
-| **Audio Input** | Microphone via Arduino | Voice commands from user |
-| **Audio Output** | Speaker via Arduino | Audio feedback delivery |
-| **Wireless** | WiFi (camera), Bluetooth (audio) | Cable-free operation |
-| **Processing** | Server/Computer | AI inference, backend services |
-| **Controls** | Physical buttons | Mode selection, activation |
+| **Camera** | Built-in webcam (default) or ESP32-CAM (optional) | Video capture |
+| **Audio Input** | Built-in mic (default) or Bluetooth Microphone (optional) | Voice commands from user |
+| **Audio Output** | Built-in speakers (default) or Bluetooth Headphone (optional) | Audio feedback delivery |
+| **Processing** | Computer/Server | AI inference, backend services |
+| **Controls** | Voice Commands (Handsfree Mode) | Mode selection, activation |
 
 ### Software Architecture
 
@@ -54,16 +53,17 @@ A purpose-built wearable device providing:
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │  Backend Services (FastAPI)                            │ │
 │  │  ├── Camera Service      — Video feed handling         │ │
-│  │  ├── Model Service       — YOLO, MediaPipe, BLIP       │ │
+│  │  ├── Model Service       — YOLO26s, MediaPipe, BLIP   │ │
 │  │  ├── Activity Guide      — Object localization logic   │ │
-│  │  ├── Scene Description   — Environment analysis        │ │
+│  │  ├── Scene Description   — Environment analysis + fall detection │ │
 │  │  ├── STT Service         — Whisper speech recognition  │ │
-│  │  └── TTS Service         — Audio response generation   │ │
+│  │  ├── TTS Service         — Audio response generation   │ │
+│  │  └── Email Service       — Guardian alerts & summaries │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │  AI Models                                              │ │
-│  │  ├── YOLOv8              — Real-time object detection  │ │
+│  │  ├── YOLO26s            — Real-time object detection  │ │
 │  │  ├── MediaPipe           — Hand tracking               │ │
 │  │  ├── BLIP                — Image captioning            │ │
 │  │  ├── Groq API            — LLM reasoning (Llama 3)     │ │
@@ -73,7 +73,7 @@ A purpose-built wearable device providing:
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │  Frontend (React) — Development GUI                    │ │
 │  │  Note: Proof of concept only. Final device uses        │ │
-│  │  physical buttons + audio, no screen required.         │ │
+│  │  handsfree voice commands, no screen required.         │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -108,25 +108,29 @@ A purpose-built wearable device providing:
 - Analyze video feed using BLIP vision model
 - Generate contextual descriptions via LLM
 - Prioritize safety-relevant information
-- Support guardian alert notifications
+- Advanced fall detection algorithm
+- Automatic guardian email notifications
 
 **Acceptance Criteria**:
 - ✅ Descriptions are contextually relevant
 - ✅ Safety hazards are identified and prioritized
-- 🔄 Guardian alerts functional (in testing)
+- ✅ Fall detection with email alerts (working)
+- ✅ Guardian email system (complete)
 
 ### FR-3: Voice Interaction
 
 **Description**: Hands-free voice command and response.
 
 **Requirements**:
-- Speech-to-text using Whisper
-- Text-to-speech for audio responses
-- Support via Arduino Bluetooth audio
+- Speech-to-text using Whisper (offline)
+- Text-to-speech for audio responses (native)
+- Full handsfree/voice-only mode
+- Support via Bluetooth microphone/headphone
 
 **Acceptance Criteria**:
 - ✅ Voice commands recognized accurately
 - ✅ Audio responses are clear
+- ✅ Handsfree mode fully functional
 - 🔄 Bluetooth audio integration (in progress)
 
 ### FR-4: Wireless Operation
@@ -134,14 +138,16 @@ A purpose-built wearable device providing:
 **Description**: Cable-free wearable design.
 
 **Requirements**:
-- ESP32-CAM streams video over WiFi
-- Arduino handles audio over Bluetooth
-- Physical buttons for basic controls
+- System runs on computer with built-in webcam/mic (default)
+- Optional: ESP32-CAM for wireless video streaming
+- Optional: Bluetooth microphone/headphone for wireless audio
+- Voice commands via Handsfree Mode for all controls
 
 **Acceptance Criteria**:
-- 🔄 WiFi streaming functional (in progress)
-- 🔄 Bluetooth audio functional (in progress)
-- ⏳ Button controls (pending)
+- ✅ Core system functional with built-in hardware
+- ✅ Handsfree mode provides full voice control
+- 🔄 Optional ESP32-CAM WiFi streaming (in progress)
+- 🔄 Optional Bluetooth mic/headphone pairing (in progress)
 
 ---
 
@@ -189,14 +195,14 @@ Hardware Firmware:
 
 ### UX-1: Accessibility First
 - No screen interaction required for core functions
-- Physical buttons for mode selection
+- Voice commands via Handsfree Mode for all controls
 - Clear, concise audio feedback
 - Consistent audio cues for system states
 
 ### UX-2: Hands-Free Design
-- Wearable camera (spectacle-mounted or clip-on)
-- Wireless audio (earpiece or speaker)
-- No cables during operation
+- Custom ESP32-CAM with casing (recommended) or built-in webcam (default)
+- Wireless audio accessories (optional) or built-in speakers (default)
+- Voice-only operation — no physical buttons needed
 
 ### UX-3: Safety Prioritization
 - Hazard detection in Scene Description mode
@@ -220,13 +226,13 @@ Hardware Firmware:
 
 ### In Progress 🔄
 - Scene Description mode refinement
-- ESP32-CAM WiFi integration
-- Arduino Bluetooth audio
-- Guardian alert system
+- Custom ESP32-CAM WiFi integration (optional)
+- Bluetooth mic/headphone integration (optional)
+- ✅ Guardian alert system (complete)
 
 ### Pending ⏳
-- Physical button controls
-- Wearable enclosure design
+- ✅ Voice control complete (no physical buttons needed)
+- ✅ Custom camera casing designed (3D printable)
 - User field testing
 - Final documentation
 
@@ -237,7 +243,7 @@ Hardware Firmware:
 ### MVP Requirements
 1. **Active Guidance**: User can find objects using voice commands
 2. **Scene Description**: Continuous environment awareness
-3. **Wireless Operation**: ESP32 camera + Arduino audio working
+3. **Wireless Operation**: Custom ESP32-CAM (recommended) or built-in webcam (default) — both work perfectly
 4. **Standalone Use**: No screen required for blind users
 
 ### Quality Metrics

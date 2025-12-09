@@ -26,6 +26,11 @@ pip install -r requirements.txt
 ```bash
 # Create the file with your Groq API key
 echo "GROQ_API_KEY=your_groq_api_key_here" > .env
+
+# Optional: Add email configuration for guardian alerts
+# echo "EMAIL_SENDER=your_email@gmail.com" >> .env
+# echo "EMAIL_PASSWORD=your_app_password" >> .env
+# echo "EMAIL_RECIPIENT=guardian@example.com" >> .env
 ```
 
 > Get a free API key at [console.groq.com](https://console.groq.com/keys)
@@ -84,11 +89,25 @@ VITE ready in xxx ms
 - Enter an object to find (e.g., "water bottle", "my phone")
 - Follow the audio instructions to locate and reach the object
 - The system tracks your hand and guides you to the target
+- **Handsfree**: Enable Voice-Only Mode and say "input task" to enter via voice
 
 ### Scene Description Mode  
 - Click **"Start Recording"**
 - The system continuously analyzes and describes your environment
 - Safety alerts are prioritized
+- **Fall Detection**: Automatically detects falls and sends guardian alerts
+- **Handsfree**: Enable Voice-Only Mode and say "start recording" to begin
+
+### Handsfree Mode (Voice-Only)
+- Click the **microphone icon** in the header to enable
+- All instructions are automatically spoken
+- Use voice commands:
+  - "Switch to activity guide" / "Switch to scene description"
+  - "Turn on camera" / "Turn off camera"
+  - "Input task" (dictate task name)
+  - "Start task" (begin the task)
+  - "Yes" / "No" (for feedback)
+- Perfect for blind users — no screen needed!
 
 ---
 
@@ -135,8 +154,13 @@ VITE ready in xxx ms
 
 ## Hardware Note
 
-This setup uses your laptop's camera and speakers for testing. The production device will use:
-- **ESP32-CAM** for wireless video (WiFi)
-- **Arduino** for wireless audio (Bluetooth)
+**Recommended Setup:** We've designed a **custom ESP32-CAM with protective casing** (see `Hardware/cam-casing/airis-case.stl`) for the best handsfree experience. This provides wireless camera positioning and professional appearance.
 
-Hardware integration is currently in progress.
+**Default Setup:** The system works perfectly with your computer's built-in webcam and speakers/microphone. No external hardware is required — we've made this the default option for maximum accessibility and ease of use.
+
+**Optional Accessories:**
+- **Custom ESP32-CAM with casing** ⭐ — Recommended for handsfree camera positioning
+- **Bluetooth Microphone** — Optional for wireless voice input
+- **Bluetooth Headphone** — Optional for wireless audio output
+
+Enable **Voice-Only Mode** for full handsfree operation using voice commands — works with any camera setup!

@@ -19,7 +19,7 @@
 
 > [!NOTE]
 > This project is under active development. The **core software is complete and tested**.
-> Hardware integration (ESP32 + Arduino) is currently in progress.
+> Core software complete. Custom ESP32-CAM with casing designed. Optional hardware accessories in progress.
 >
 > **Expected Completion: December 2025**
 
@@ -70,39 +70,46 @@ Analyzes your environment and describes what's around you with safety alerts.
 
 ## 🏗️ System Architecture
 
-### Hardware Design
+### System Architecture
 
 ```mermaid
 graph TB
-    subgraph "👓 Wearable Unit"
-        A[📷 ESP32-CAM<br/>Camera Module]
-        B[🎤 Microphone]
-        C[🔊 Speaker]
-        D[🎛️ Arduino<br/>Audio Controller]
-    end
-    
-    subgraph "🖥️ Server"
+    subgraph "💻 Computer/Server"
         E[⚡ FastAPI<br/>Backend]
-        F[🧠 AI Models<br/>YOLO • MediaPipe • BLIP]
+        F[🧠 AI Models<br/>YOLO26 • MediaPipe • BLIP]
         G[💬 Groq LLM<br/>Llama 3]
-        H[🌐 React<br/>Dev GUI]
+        H[🌐 React<br/>Frontend]
+        I[📧 Email Service<br/>Guardian Alerts]
+        J[📷 Built-in<br/>Webcam/Mic]
     end
     
-    A -->|WiFi Stream| E
-    D -->|Bluetooth| E
-    B --> D
-    D --> C
+    subgraph "🔌 Optional Accessories"
+        A[📷 ESP32-CAM<br/>WiFi Camera]
+        B[🎤 Bluetooth<br/>Microphone]
+        C[🎧 Bluetooth<br/>Headphone]
+    end
+    
+    A -.->|WiFi Optional| E
+    B -.->|Bluetooth Optional| E
+    E -.->|Bluetooth Optional| C
+    J -->|Default| E
     E --> F
     F --> G
     E --> H
+    E --> I
     
-    style A fill:#E7352C,color:#fff
-    style D fill:#00979D,color:#fff
     style E fill:#009688,color:#fff
     style F fill:#4B4E9E,color:#fff
     style G fill:#C9AC78,color:#000
     style H fill:#61DAFB,color:#000
+    style I fill:#C75050,color:#fff
+    style J fill:#666,color:#fff
+    style A fill:#E7352C,color:#fff,stroke-dasharray: 5 5
+    style B fill:#00979D,color:#fff,stroke-dasharray: 5 5
+    style C fill:#00979D,color:#fff,stroke-dasharray: 5 5
 ```
+
+**Note:** Dashed lines indicate optional accessories. The system runs entirely on your computer with built-in webcam/mic by default.
 
 ### Data Flow
 
@@ -136,16 +143,18 @@ graph LR
 | Component | Status | Progress |
 |:----------|:------:|:--------:|
 | 🎯 **Active Guidance Mode** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
-| 🔍 **Scene Description Mode** | 🔄 Testing | ![90%](https://img.shields.io/badge/90%25-yellow?style=flat-square) |
+| 🔍 **Scene Description Mode** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
+| 🎤 **Handsfree Voice Mode** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
+| 📧 **Guardian Email Alerts** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
 | ⚡ **Backend API** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
 | 🌐 **Frontend GUI** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
-| 📷 **ESP32-CAM Integration** | 🔄 In Progress | ![40%](https://img.shields.io/badge/40%25-orange?style=flat-square) |
-| 🔊 **Arduino Audio** | 🔄 In Progress | ![30%](https://img.shields.io/badge/30%25-orange?style=flat-square) |
-| 📦 **Physical Device** | ⏳ Pending | ![0%](https://img.shields.io/badge/0%25-lightgrey?style=flat-square) |
+| 📷 **ESP32-CAM (Optional)** | 🔄 Optional | ![40%](https://img.shields.io/badge/40%25-orange?style=flat-square) |
+| 🎧 **Bluetooth Audio (Optional)** | 🔄 Optional | ![30%](https://img.shields.io/badge/30%25-orange?style=flat-square) |
 
 <div align="center">
 
-**Overall: ~70% Complete**
+**Core Software: 100% Complete**  
+**Optional Hardware Accessories: In Progress**
 
 </div>
 
@@ -166,12 +175,13 @@ graph LR
 | Layer | Technology |
 |:------|:-----------|
 | **Backend** | FastAPI, Python 3.10+ |
-| **Object Detection** | YOLOv8 (Ultralytics) |
+| **Object Detection** | YOLO26s (Ultralytics) |
 | **Hand Tracking** | MediaPipe |
 | **Scene Analysis** | BLIP |
 | **LLM Reasoning** | Groq API (Llama 3) |
-| **Speech-to-Text** | OpenAI Whisper |
-| **Text-to-Speech** | pyttsx3 |
+| **Speech-to-Text** | Whisper (offline) |
+| **Text-to-Speech** | pyttsx3 (native) |
+| **Email Notifications** | aiosmtplib (Gmail SMTP) |
 | **Frontend** | React, TypeScript, Vite |
 
 </td>
@@ -179,20 +189,21 @@ graph LR
 
 ### 🔌 Hardware
 
-| Component | Technology |
-|:----------|:-----------|
-| **Camera** | ESP32-CAM (WiFi) |
-| **Audio I/O** | Arduino + Bluetooth |
-| **Microphone** | Electret/MEMS |
-| **Speaker** | Mini 2W Speaker |
-| **Controls** | Physical Buttons |
-| **Processing** | Server/Computer |
+| Component | Technology | Required? |
+|:----------|:-----------|:---------:|
+| **Camera** | Built-in webcam (default) or **Custom ESP32-CAM with casing** ⭐ (recommended) | No |
+| **Audio Input** | Built-in mic (default) or Bluetooth Microphone (optional) | No |
+| **Audio Output** | Built-in speakers (default) or Bluetooth Headphone (optional) | No |
+| **Controls** | Voice Commands (handsfree mode) | Yes |
+| **Processing** | Computer/Server | Yes |
+
+**Note:** We've designed a custom ESP32-CAM with protective casing (see `Hardware/cam-casing/`) — recommended for best handsfree experience. However, the system works perfectly with built-in hardware by default for maximum accessibility.
 
 </td>
 </tr>
 </table>
 
-> **Note:** The React frontend is a development interface. The final device will be fully usable by blind users through **physical buttons and audio** alone — no screen required.
+> **Note:** The React frontend is a development interface. The system is fully usable by blind users through **handsfree voice commands** — no screen or physical buttons required.
 
 ---
 
@@ -205,7 +216,7 @@ graph LR
 ```mermaid
 graph TD
     ROOT[📂 AIRIS] --> MAIN[⭐ AIris-System<br/>Main Application]
-    ROOT --> HW[🔌 Hardware<br/>ESP32 & Arduino]
+    ROOT --> HW[🔌 Hardware<br/>Custom ESP32-CAM]
     ROOT --> DOCS[📚 Documentation<br/>Project Docs]
     ROOT --> SW[📦 Archive<br/>Archived Experiments]
     
@@ -234,7 +245,7 @@ graph TD
 | Folder | Purpose | Status |
 |:-------|:--------|:------:|
 | **`AIris-System/`** | ⭐ **Main application** — Start here! Contains the working FastAPI backend and React frontend | Active |
-| **`Hardware/`** | ESP32-CAM and Arduino firmware code | In Progress |
+| **`Hardware/`** | Custom ESP32-CAM casing design & firmware | Optional |
 | **`Documentation/`** | PRD, plans, technical docs, images | Reference |
 | **`Archive/`** | Archived experiments and prototypes from our development journey | Archive |
 
@@ -292,8 +303,8 @@ cat QUICKSTART.md
 
 ### 🔌 Hardware Integration *(Current Focus)*
 - [ ] Complete ESP32-CAM WiFi streaming
-- [ ] Finalize Arduino Bluetooth audio
-- [ ] Wire physical button controls
+- [ ] Finalize Bluetooth mic/headphone integration (optional)
+- ✅ Voice control complete (no physical buttons needed)
 - [ ] Design wearable enclosure (3D print)
 
 ### 🔧 Software Refinement
@@ -315,10 +326,11 @@ cat QUICKSTART.md
 | Feature | Description |
 |:--------|:------------|
 | 🎯 **Object Guidance** | Speak an object name → Get audio directions until you touch it |
-| 🔍 **Scene Understanding** | Continuous environment awareness and description |
-| ⚠️ **Safety Alerts** | Hazard detection with optional guardian notifications |
-| 🎤 **Voice Control** | Speak commands, receive audio responses |
-| 📡 **Wireless Design** | ESP32 WiFi camera + Bluetooth audio — no cables |
+| 🔍 **Scene Understanding** | Continuous environment awareness with fall detection |
+| ⚠️ **Safety Alerts** | Automatic fall detection with guardian email notifications |
+| 🎤 **Handsfree Mode** | Full voice control — no screen interaction required |
+| 📧 **Guardian Features** | Daily/weekly summaries and configurable risk thresholds |
+| 📡 **Custom Hardware** | Custom ESP32-CAM with casing (recommended) + Bluetooth mic/headphone (optional) |
 | 🔒 **Privacy First** | All AI processing happens on your local server |
 
 ---

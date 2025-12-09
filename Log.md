@@ -2,15 +2,16 @@
 
 # AIris Development Log
 
-![Phase](https://img.shields.io/badge/Phase-Hardware%20Integration-blue?style=for-the-badge)
-![Progress](https://img.shields.io/badge/Progress-70%25-green?style=for-the-badge)
+![Phase](https://img.shields.io/badge/Phase-Software%20Complete-success?style=for-the-badge)
+![Progress](https://img.shields.io/badge/Progress-100%25%20Core-success?style=for-the-badge)
 
 ---
 
-## Current Sprint: Hardware Integration
+## Current Sprint: Software Complete, Hardware Optional
 
-**Goal:** Connect ESP32-CAM and Arduino to the working software system  
-**Timeline:** December 2025
+**Goal:** Core software system complete with handsfree mode. Custom ESP32-CAM with casing designed.  
+**Timeline:** December 2025  
+**Status:** ✅ Core software 100% complete | 🔄 Optional hardware accessories in progress
 
 ---
 
@@ -23,12 +24,67 @@
   </tr>
   <tr>
     <td align="center">
+      <strong>Dec 9</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Handsfree Mode Polished</strong><br/>
+      Finalized handsfree/voice-only mode implementation. Made STT robust, implemented native TTS for narration. Fixed voice control service bugs. System now fully functional with voice commands — no screen interaction needed.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Dec 9</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Handsfree Mode Initial Implementation</strong><br/>
+      Initial working implementation of handsfree mode. Voice commands now control entire system. Users can switch modes, control camera, input tasks, and interact fully via voice.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Dec 8</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>YOLO Model Upgrade</strong><br/>
+      Upgraded from YOLOv8s to YOLO26s for improved object detection accuracy and performance. Updated model service and documentation.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Dec 7</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Guardian Email System Complete</strong><br/>
+      Implemented complete guardian email notification system. Added fall detection algorithm with email alerts. Created daily/weekly summary emails. Added risk threshold configuration. System now sends automatic safety alerts to guardians.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Dec 7</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Scene Description Upgrade</strong><br/>
+      Major upgrade to Scene Description mode with improved fall detection, depth tracking, and UI overhaul. Enhanced safety alert prioritization and risk scoring.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <strong>Dec 6</strong><br/>
       <em>2025</em>
     </td>
     <td>
-      <strong>Repository Reorganization</strong><br/>
-      Complete restructure of project folders. Renamed AIris-Final-App-2 to AIris-System as main application. Moved Hardware and Documentation into organized structure. Updated all documentation to reflect ESP32 + Arduino architecture.<br/>
+      <strong>Repository Reorganization & Custom Camera Design</strong><br/>
+      Complete restructure of project folders. Renamed AIris-Final-App-2 to AIris-System as main application. Moved Hardware and Documentation into organized structure. Designed custom ESP32-CAM casing (3D printable STL). Updated architecture to computer-based system with optional accessories.<br/>
       <em>- Rajin</em>
     </td>
   </tr>
@@ -485,8 +541,13 @@
 | Activity Guide v1 | Nov 1, 2025 | ✅ |
 | Final demo system | Nov 16, 2025 | ✅ |
 | ESP32 integration started | Dec 1, 2025 | 🔄 |
+| Custom camera casing designed | Dec 6, 2025 | ✅ |
 | Repo reorganization | Dec 6, 2025 | ✅ |
-| Hardware complete | Dec 2025 | ⏳ |
+| YOLO26s upgrade | Dec 8, 2025 | ✅ |
+| Guardian email system | Dec 7, 2025 | ✅ |
+| Handsfree mode complete | Dec 9, 2025 | ✅ |
+| Core software complete | Dec 9, 2025 | ✅ |
+| Optional hardware accessories | Dec 2025 | 🔄 |
 | Final submission | Dec 2025 | ⏳ |
 
 ---
@@ -535,11 +596,15 @@
 - Speech I/O integration
 - System integration and testing
 
-### Phase 4: Hardware Integration *(Dec 2025)*
-- ESP32-CAM WiFi integration
-- Arduino Bluetooth audio
-- Repository reorganization
-- Final documentation
+### Phase 4: Software Completion & Hardware Design *(Dec 2025)*
+- ✅ Handsfree/voice-only mode implementation
+- ✅ Guardian email system with fall detection
+- ✅ YOLO26s model upgrade
+- ✅ Custom ESP32-CAM casing design (3D printable)
+- ✅ Repository reorganization
+- ✅ Architecture shift to computer-based system
+- 🔄 Optional hardware accessories (ESP32-CAM, Bluetooth audio)
+- ✅ Complete documentation update
 
 ---
 
