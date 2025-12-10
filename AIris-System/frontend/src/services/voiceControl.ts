@@ -120,7 +120,15 @@ export class VoiceControlService {
             "stat task",
             "stat desk",
             "start a task",
-            "start task status"
+            "start task status",
+            "stardusk",
+            "status",
+            "begin task",
+            "begin desk",
+            "begin ask",
+            "begin tusk",
+            "be gin task",
+            "be in task"
           ])) {
             console.log(`[VoiceControl] Detected "start task" command in dictation mode, exiting dictation`);
             // Exit dictation mode
@@ -314,7 +322,8 @@ export class VoiceControlService {
             "on": ["own", "an"],
             "off": ["of"],
             "task": ["desk", "ask", "tusk", "tax", "podcast"],
-            "start": ["star", "stuck", "stat"],
+            "start": ["star", "stuck", "stat", "stardusk", "status"],
+            "begin": ["be gin", "be in", "be gone", "begin"],
             "stop": ["stap", "stopp", "stob"],
             "recording": ["record", "record in", "record ing"],
             "enter": ["inner"],
@@ -425,7 +434,9 @@ export class VoiceControlService {
       "turn on camra",
       "start camra",
       "turn own camera",
-      "turn an camera"
+      "turn an camera",
+      "come on",
+      "come on camera"
     ])) {
       console.log(`[VoiceControl] Matched command: camera_on`);
       callbacks.forEach((cb, idx) => {
@@ -506,7 +517,15 @@ export class VoiceControlService {
       "stat task",
       "stat desk",
       "start a task",
-      "start task status"
+      "start task status",
+      "stardusk",
+      "status",
+      "begin task",
+      "begin desk",
+      "begin ask",
+      "begin tusk",
+      "be gin task",
+      "be in task"
     ])) {
       console.log(`[VoiceControl] Matched command: start_task`);
       callbacks.forEach((cb, idx) => {

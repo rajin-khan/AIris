@@ -63,7 +63,7 @@ class ActivityGuideService:
         self.VERIFICATION_PAIRS = [("watch", "clock")]
     
     def _init_groq(self):
-        """Initialize Groq client with Llama 3.3 70B model"""
+        """Initialize Groq client with GPT OSS 120B model"""
         # Try multiple ways to get the API key
         api_key = os.environ.get("GROQ_API_KEY") or os.environ.get("groq_api_key")
         

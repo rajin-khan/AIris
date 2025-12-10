@@ -169,7 +169,7 @@ VITE_API_BASE_URL=http://localhost:8000  # Optional, default shown
 | Object Detection | YOLO26s (Ultralytics) |
 | Hand Tracking | MediaPipe |
 | Image Captioning | BLIP |
-| LLM Reasoning | Groq API (Llama 3) |
+| LLM Reasoning | Groq API (GPT OSS 120B) |
 | Speech-to-Text | Whisper (offline) |
 | Text-to-Speech | pyttsx3 (native) |
 | Email Notifications | aiosmtplib (Gmail SMTP) |

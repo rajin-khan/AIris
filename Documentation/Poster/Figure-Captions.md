@@ -50,3 +50,4 @@
 - **Placement:** Captions should be positioned directly below their corresponding figures
 - **Consistency:** All captions follow the same format and style guidelines
 
+
