@@ -238,6 +238,9 @@ export default function ActivityGuide({
               isInDictationModeRef.current = true;
               // Clear existing input when starting dictation
               setTaskInput("");
+              // Audio cue: Ready to accept task input
+              voiceControl.markUserInteracted();
+              voiceControl.speakText("Alright, what do I need to find?", false);
               voiceControl.startDictation((dictatedText) => {
                 console.log(
                   `[ActivityGuide] Dictation text received: "${dictatedText}"`
