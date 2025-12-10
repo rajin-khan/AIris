@@ -6,6 +6,7 @@ import HardwareSettings from "./components/HardwareSettings";
 import TranscriptionBubble from "./components/TranscriptionBubble";
 import { apiClient } from "./services/api";
 import { getVoiceControlService } from "./services/voiceControl";
+import { generateWelcomeMessage } from "./utils/welcomeMessages";
 
 type Mode = "Activity Guide" | "Scene Description";
 type CameraSource = "local" | "esp32";
@@ -296,25 +297,12 @@ function App() {
                 // Mark interaction FIRST, then speak
                 voiceControlRef.current.markUserInteracted();
 
-                // Speak welcome message and instructions after a short delay
+                // Speak warm, time-aware welcome message after a short delay
                 setTimeout(() => {
-                  const modeName =
-                    mode === "Activity Guide"
-                      ? "Activity Guide"
-                      : "Scene Description";
-                  let welcomeMessage = `Voice mode enabled. You are in ${modeName} mode. `;
-
-                  if (cameraOn) {
-                    welcomeMessage += `Camera is on. `;
-                  } else {
-                    welcomeMessage += `Say "turn on camera" to start the camera. `;
-                  }
-
-                  if (mode === "Activity Guide") {
-                    welcomeMessage += `Say "input task" to enter a task. Say "start task" to begin a task.`;
-                  } else {
-                    welcomeMessage += `Say "start recording" to begin scene description.`;
-                  }
+                  const welcomeMessage = generateWelcomeMessage({
+                    mode,
+                    cameraOn,
+                  });
 
                   console.log(
                     "[App] Speaking welcome message:",
