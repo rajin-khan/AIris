@@ -90,6 +90,10 @@ export default function SceneDescription({
   const stopRecordingButtonRef = useRef<HTMLButtonElement>(null);
   const lastSpokenSummaryRef = useRef<string>("");
   const lastSpokenDescriptionRef = useRef<string>("");
+  const lastRecordingAnnouncementRef = useRef<{
+    state: boolean | null;
+    timestamp: number;
+  }>({ state: null, timestamp: 0 });
 
   const BUFFER_MAX = 5; // 5 frames at 2 FPS = 2.5 seconds
 
@@ -527,6 +531,20 @@ export default function SceneDescription({
         setFilledFrames([]);
         frameCountRef.current = 0;
         lastSummaryRef.current = "";
+
+        // Audio cue: Recording started (only in voice-only mode)
+        if (voiceOnlyMode) {
+          const now = Date.now();
+          const timeSinceLastAnnouncement = now - lastRecordingAnnouncementRef.current.timestamp;
+          const lastAnnouncedState = lastRecordingAnnouncementRef.current.state;
+
+          // Only announce if we haven't announced this state recently (within 2 seconds)
+          if (lastAnnouncedState !== true || timeSinceLastAnnouncement > 2000) {
+            voiceControlRef.current.markUserInteracted();
+            voiceControlRef.current.speakText("Recording started", false);
+            lastRecordingAnnouncementRef.current = { state: true, timestamp: now };
+          }
+        }
       }
     } catch (error) {
       console.error("Error starting recording:", error);
@@ -540,6 +558,20 @@ export default function SceneDescription({
       if (response.status === "success") {
         setIsRecording(false);
         await loadLogs();
+
+        // Audio cue: Recording stopped (only in voice-only mode)
+        if (voiceOnlyMode) {
+          const now = Date.now();
+          const timeSinceLastAnnouncement = now - lastRecordingAnnouncementRef.current.timestamp;
+          const lastAnnouncedState = lastRecordingAnnouncementRef.current.state;
+
+          // Only announce if we haven't announced this state recently (within 2 seconds)
+          if (lastAnnouncedState !== false || timeSinceLastAnnouncement > 2000) {
+            voiceControlRef.current.markUserInteracted();
+            voiceControlRef.current.speakText("Recording stopped", false);
+            lastRecordingAnnouncementRef.current = { state: false, timestamp: now };
+          }
+        }
       }
     } catch (error) {
       console.error("Error stopping recording:", error);
