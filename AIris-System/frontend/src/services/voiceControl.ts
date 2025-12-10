@@ -179,6 +179,23 @@ export class VoiceControlService {
             return;
           }
           
+          // Check for "refresh" command in dictation mode to break out of loops
+          if (this.fuzzyMatch(transcript, [
+            "refresh",
+            "re fresh",
+            "refresh recognition",
+            "restart",
+            "re start",
+            "restart recognition",
+            "reset",
+            "re set",
+            "reset recognition"
+          ])) {
+            console.log(`[VoiceControl] Detected "refresh" command in dictation mode, restarting recognition`);
+            this.restartRecognition();
+            return;
+          }
+          
           // Otherwise, just pass the text as dictation
           if (this.dictationCallback) {
             console.log(`[VoiceControl] Dictation callback triggered with: "${transcript}"`);
@@ -321,7 +338,7 @@ export class VoiceControlService {
             "camera": ["camra", "cam era", "camer"],
             "on": ["own", "an"],
             "off": ["of"],
-            "task": ["desk", "ask", "tusk", "tax", "podcast"],
+            "task": ["desk", "ask", "tusk", "tax", "podcast", "test", "has"],
             "start": ["star", "stuck", "stat", "stardusk", "status"],
             "begin": ["be gin", "be in", "be gone", "begin"],
             "stop": ["stap", "stopp", "stob"],
@@ -330,7 +347,10 @@ export class VoiceControlService {
             "input": ["in put", "inpoot", "in putt", "in the", "importance"],
             "guide": ["guy", "good", "guyed"],
             "yes": ["yeah", "yep", "yea", "yas"],
-            "no": ["know", "now", "nope"]
+            "no": ["know", "now", "nope"],
+            "refresh": ["re fresh", "refreshed", "refresh it", "fresh"],
+            "restart": ["re start", "restarted", "restart it", "start"],
+            "reset": ["re set", "resetted", "reset it", "set"]
           };
           
           if (misrecognitions[patternWord]) {
@@ -491,7 +511,9 @@ export class VoiceControlService {
       "input tax",
       "in the task",
       "in podcast",
-      "importance"
+      "importance",
+      "input test",
+      "input has"
     ])) {
       console.log(`[VoiceControl] Matched command: enter_task`);
       callbacks.forEach((cb, idx) => {
@@ -605,6 +627,23 @@ export class VoiceControlService {
           console.error(`[VoiceControl] Error in callback ${idx + 1}:`, error);
         }
       });
+      return;
+    }
+
+    // Refresh command - restart speech recognition
+    if (this.fuzzyMatch(transcript, [
+      "refresh",
+      "re fresh",
+      "refresh recognition",
+      "restart",
+      "re start",
+      "restart recognition",
+      "reset",
+      "re set",
+      "reset recognition"
+    ])) {
+      console.log(`[VoiceControl] Matched command: refresh - restarting speech recognition`);
+      this.restartRecognition();
       return;
     }
 
@@ -814,6 +853,69 @@ export class VoiceControlService {
         console.warn(`[VoiceControl] Error stopping recognition:`, error);
       }
     }
+  }
+
+  restartRecognition(): void {
+    console.log(`[VoiceControl] Restarting speech recognition`, {
+      wasListening: this.isListening,
+      wasInDictationMode: this.isDictationMode,
+      hasCommandCallback: !!this.commandCallback,
+      hasDictationCallback: !!this.dictationCallback
+    });
+
+    // Store current state
+    const wasInDictation = this.isDictationMode;
+    const savedDictationCallback = this.dictationCallback;
+    const savedCommandCallback = this.commandCallback;
+
+    // Stop current recognition
+    this.isListening = false;
+    if (this.recognition) {
+      try {
+        this.recognition.stop();
+        this.recognition.abort();
+      } catch (e) {
+        // Ignore errors when stopping
+      }
+    }
+
+    // Wait a moment for recognition to fully stop, then restart
+    setTimeout(() => {
+      if (!this.recognition) {
+        console.warn(`[VoiceControl] Cannot restart - recognition not initialized`);
+        return;
+      }
+
+      // Restart in the same mode it was in before
+      if (wasInDictation && savedDictationCallback) {
+        console.log(`[VoiceControl] Restarting in dictation mode`);
+        this.isDictationMode = true;
+        this.dictationCallback = savedDictationCallback;
+        this.isListening = true;
+        try {
+          this.recognition.start();
+          console.log(`[VoiceControl] Dictation recognition restarted successfully`);
+        } catch (error) {
+          console.error(`[VoiceControl] Failed to restart dictation:`, error);
+          this.isListening = false;
+          this.isDictationMode = false;
+        }
+      } else if (savedCommandCallback || this.commandCallbacks.size > 0) {
+        console.log(`[VoiceControl] Restarting in command mode`);
+        this.isDictationMode = false;
+        this.dictationCallback = null;
+        this.isListening = true;
+        try {
+          this.recognition.start();
+          console.log(`[VoiceControl] Command recognition restarted successfully`);
+        } catch (error) {
+          console.error(`[VoiceControl] Failed to restart command recognition:`, error);
+          this.isListening = false;
+        }
+      } else {
+        console.log(`[VoiceControl] No callbacks registered - not restarting`);
+      }
+    }, 300); // Wait 300ms for recognition to fully stop
   }
 
   markUserInteracted(): void {
