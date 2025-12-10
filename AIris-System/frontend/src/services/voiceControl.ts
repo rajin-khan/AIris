@@ -58,6 +58,7 @@ declare global {
 
 export type VoiceCommandCallback = (command: string, transcript: string) => void;
 export type DictationCallback = (text: string) => void;
+export type TranscriptionCallback = (type: 'user' | 'system' | 'refresh', text: string) => void;
 
 export class VoiceControlService {
   private recognition: SpeechRecognition | null = null;
@@ -68,6 +69,7 @@ export class VoiceControlService {
   private dictationCallback: DictationCallback | null = null;
   private isSpeaking = false;
   private commandCallbacks: Set<VoiceCommandCallback> = new Set();
+  private transcriptionCallbacks: Set<TranscriptionCallback> = new Set();
   private hasUserInteracted = false;
   private lastSpeakTime = 0;
   private speakDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -94,9 +96,11 @@ export class VoiceControlService {
       this.recognition.onresult = (event: SpeechRecognitionEvent) => {
         // Get the most recent result
         const resultIndex = event.resultIndex;
-        const transcript = event.results[resultIndex][0].transcript
-          .trim()
-          .toLowerCase();
+        const rawTranscript = event.results[resultIndex][0].transcript.trim();
+        const transcript = rawTranscript.toLowerCase();
+
+        // Emit user transcription event (with original casing)
+        this.emitTranscription('user', rawTranscript);
 
         console.log(`[VoiceControl] Recognition result received:`, {
           transcript,
@@ -192,6 +196,7 @@ export class VoiceControlService {
             "reset recognition"
           ])) {
             console.log(`[VoiceControl] Detected "refresh" command in dictation mode, restarting recognition`);
+            this.emitTranscription('refresh', 'Refreshing voice recognition...');
             this.restartRecognition();
             return;
           }
@@ -643,6 +648,7 @@ export class VoiceControlService {
       "reset recognition"
     ])) {
       console.log(`[VoiceControl] Matched command: refresh - restarting speech recognition`);
+      this.emitTranscription('refresh', 'Refreshing voice recognition...');
       this.restartRecognition();
       return;
     }
@@ -660,6 +666,28 @@ export class VoiceControlService {
       console.log(`[VoiceControl] Unregistering command callback. Total callbacks: ${this.commandCallbacks.size - 1}`);
       this.commandCallbacks.delete(callback);
     };
+  }
+
+  // Register a transcription callback (for UI display)
+  registerTranscriptionCallback(callback: TranscriptionCallback): () => void {
+    console.log(`[VoiceControl] Registering transcription callback. Total callbacks: ${this.transcriptionCallbacks.size + 1}`);
+    this.transcriptionCallbacks.add(callback);
+    // Return unregister function
+    return () => {
+      console.log(`[VoiceControl] Unregistering transcription callback. Total callbacks: ${this.transcriptionCallbacks.size - 1}`);
+      this.transcriptionCallbacks.delete(callback);
+    };
+  }
+
+  // Emit transcription event to all registered callbacks
+  private emitTranscription(type: 'user' | 'system' | 'refresh', text: string): void {
+    this.transcriptionCallbacks.forEach(callback => {
+      try {
+        callback(type, text);
+      } catch (error) {
+        console.error(`[VoiceControl] Error in transcription callback:`, error);
+      }
+    });
   }
 
   startListening(
@@ -1001,6 +1029,8 @@ export class VoiceControlService {
       utterance.onstart = () => {
         this.isSpeaking = true;
         this.currentUtterance = utterance;
+        // Emit system transcription event
+        this.emitTranscription('system', text.trim());
       };
 
       utterance.onend = () => {
@@ -1069,6 +1099,7 @@ export class VoiceControlService {
     this.commandCallback = null;
     this.dictationCallback = null;
     this.commandCallbacks.clear();
+    this.transcriptionCallbacks.clear();
     // Clear debounce timer
     if (this.speakDebounceTimer) {
       clearTimeout(this.speakDebounceTimer);

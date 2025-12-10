@@ -3,6 +3,7 @@ import { Camera, CameraOff, Settings, Mic, MicOff } from "lucide-react";
 import ActivityGuide from "./components/ActivityGuide";
 import SceneDescription from "./components/SceneDescription";
 import HardwareSettings from "./components/HardwareSettings";
+import TranscriptionBubble from "./components/TranscriptionBubble";
 import { apiClient } from "./services/api";
 import { getVoiceControlService } from "./services/voiceControl";
 
@@ -23,6 +24,10 @@ function App() {
     return (saved === "esp32" ? "esp32" : "local") as CameraSource;
   });
   const [voiceOnlyMode, setVoiceOnlyMode] = useState(false); // Always default to OFF
+  const [currentTranscription, setCurrentTranscription] = useState<{
+    type: "user" | "system" | "refresh";
+    text: string;
+  } | null>(null);
   const voiceControlRef = useRef(getVoiceControlService());
   const modeButtonRefs = {
     "Activity Guide": useRef<HTMLButtonElement>(null),
@@ -72,6 +77,14 @@ function App() {
     console.log(
       `[App] Starting voice control listening. Mode: ${mode}, Camera: ${cameraOn}`
     );
+
+    // Register transcription callback for live transcription display
+    const unregisterTranscription = voiceControl.registerTranscriptionCallback(
+      (type, text) => {
+        setCurrentTranscription({ type, text });
+      }
+    );
+
     voiceControl.startListening((command, transcript) => {
       console.log(
         `[App] Voice command received: ${command} - "${transcript}"`,
@@ -151,6 +164,8 @@ function App() {
     return () => {
       // Cleanup: stop listening when voice-only mode is disabled or component unmounts
       voiceControl.stopListening();
+      unregisterTranscription();
+      setCurrentTranscription(null);
     };
   }, [voiceOnlyMode, mode, cameraOn]);
 
@@ -264,6 +279,11 @@ function App() {
         <h1 className="text-3xl font-semibold text-dark-text-primary tracking-logo font-heading">
           A<span className="text-2xl align-middle opacity-80">IRIS</span>
         </h1>
+
+        <TranscriptionBubble
+          voiceOnlyMode={voiceOnlyMode}
+          transcription={currentTranscription}
+        />
 
         <div className="flex items-center space-x-4 md:space-x-6">
           {/* Voice Only Mode Toggle */}
