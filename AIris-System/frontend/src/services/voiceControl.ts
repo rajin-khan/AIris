@@ -879,6 +879,10 @@ export class VoiceControlService {
       }
     }
 
+    // Audio cue: Voice input refreshed
+    this.markUserInteracted();
+    this.speakText("Voice input refreshed!", false);
+
     // Wait a moment for recognition to fully stop, then restart
     setTimeout(() => {
       if (!this.recognition) {
