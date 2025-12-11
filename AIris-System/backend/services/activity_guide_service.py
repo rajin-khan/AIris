@@ -35,6 +35,9 @@ class ActivityGuideService:
         self.object_last_seen_time = None
         self.object_disappeared_notified = False
         
+        # Camera orientation: True = facing towards user (webcam), False = facing away (ESP32 on chest)
+        self.camera_facing_towards_user = True  # Default to webcam behavior
+        
         # Feedback tracking - to adjust behavior after failed attempts
         self.failed_attempts = 0
         self.last_failed_reason = None  # "depth", "misclassification", or "unknown"
@@ -550,16 +553,29 @@ class ActivityGuideService:
                 self.instruction_history = self.instruction_history[:20]
     
     def _describe_location_detailed(self, box: List[float], frame_shape: Tuple) -> str:
-        """Describe object location in detail (corrected for front-facing camera mirror effect)"""
+        """Describe object location in detail (corrected for camera orientation)"""
         h, w = frame_shape[:2]
         center_x, center_y = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
-        # INVERTED left/right for front-facing camera
-        # Object on left of frame = actually on user's right, and vice versa
-        h_pos = "to your right" if center_x < w / 3 else "to your left" if center_x > 2 * w / 3 else "in front of you"
+        
+        # Horizontal position: INVERTED for front-facing camera, NORMAL for chest-mounted camera
+        if self.camera_facing_towards_user:
+            # Front-facing camera: Object on left of frame = actually on user's right (mirror effect)
+            h_pos = "to your right" if center_x < w / 3 else "to your left" if center_x > 2 * w / 3 else "in front of you"
+        else:
+            # Chest-mounted camera: Object on left of frame = actually on user's left (no mirror)
+            h_pos = "to your left" if center_x < w / 3 else "to your right" if center_x > 2 * w / 3 else "in front of you"
+        
         v_pos = "in the upper part" if center_y < h / 3 else "in the lower part" if center_y > 2 * h / 3 else "at chest level"
-        # Depth estimation from box size (larger = closer to camera = farther from user's body)
+        
+        # Depth estimation from box size
         relative_area = ((box[2] - box[0]) * (box[3] - box[1])) / (w * h)
-        dist = "and is farther from your body" if relative_area > 0.1 else "and appears to be within reach" if relative_area > 0.03 else "and is closer to your body"
+        if self.camera_facing_towards_user:
+            # Front-facing: larger = closer to camera = farther from user's body
+            dist = "and is farther from your body" if relative_area > 0.1 else "and appears to be within reach" if relative_area > 0.03 else "and is closer to your body"
+        else:
+            # Chest-mounted: larger = closer to camera = closer to user's body
+            dist = "and is closer to your body" if relative_area > 0.1 else "and appears to be within reach" if relative_area > 0.03 else "and is farther from your body"
+        
         return f"{v_pos} and {h_pos}, {dist}" if h_pos != "in front of you" else f"{h_pos}, {v_pos}, {dist}"
     
     def _get_distance_description(self, distance_pixels: float, frame_width: int) -> str:
@@ -582,6 +598,10 @@ class ActivityGuideService:
         For FRONT-FACING camera (webcam facing user):
         - Larger bounding box = closer to camera = FARTHER from user's body
         - Smaller bounding box = farther from camera = CLOSER to user's body
+        
+        For CHEST-MOUNTED camera (ESP32 facing away):
+        - Larger bounding box = closer to camera = CLOSER to user's body
+        - Smaller bounding box = farther from camera = FARTHER from user's body
         """
         h, w = frame_shape[:2]
         frame_area = w * h
@@ -600,21 +620,41 @@ class ActivityGuideService:
         
         depth_ratio = object_relative / hand_relative
         
-        # Interpret the ratio (corrected for front-facing camera)
-        if depth_ratio < 0.3:
-            return "The object is much closer to your body than your hand. Pull your hand back towards yourself."
-        elif depth_ratio < 0.5:
-            return "The object is closer to your body. Move your hand back towards you."
-        elif depth_ratio < 0.7:
-            return "The object is slightly closer to your body. Bring your hand back a bit."
-        elif depth_ratio < 1.3:
-            return "Your hand and the object are at roughly the same distance from your body. Focus on left/right and up/down alignment."
-        elif depth_ratio < 2.0:
-            return "The object is slightly farther out than your hand. Extend your hand outward a bit."
-        elif depth_ratio < 3.0:
-            return "The object is farther from your body than your hand. Reach outward."
+        # Interpret the ratio based on camera orientation
+        if self.camera_facing_towards_user:
+            # Front-facing camera logic (existing)
+            if depth_ratio < 0.3:
+                return "The object is much closer to your body than your hand. Pull your hand back towards yourself."
+            elif depth_ratio < 0.5:
+                return "The object is closer to your body. Move your hand back towards you."
+            elif depth_ratio < 0.7:
+                return "The object is slightly closer to your body. Bring your hand back a bit."
+            elif depth_ratio < 1.3:
+                return "Your hand and the object are at roughly the same distance from your body. Focus on left/right and up/down alignment."
+            elif depth_ratio < 2.0:
+                return "The object is slightly farther out than your hand. Extend your hand outward a bit."
+            elif depth_ratio < 3.0:
+                return "The object is farther from your body than your hand. Reach outward."
+            else:
+                return "The object is much farther out. Extend your arm forward, away from your body."
         else:
-            return "The object is much farther out. Extend your arm forward, away from your body."
+            # Chest-mounted camera logic (INVERTED)
+            # Object smaller than hand = object is farther from camera = farther from user's body
+            # Object larger than hand = object is closer to camera = closer to user's body
+            if depth_ratio < 0.3:
+                return "The object is much farther from your body than your hand. Extend your hand outward."
+            elif depth_ratio < 0.5:
+                return "The object is farther from your body. Reach outward with your hand."
+            elif depth_ratio < 0.7:
+                return "The object is slightly farther out. Extend your hand a bit more."
+            elif depth_ratio < 1.3:
+                return "Your hand and the object are at roughly the same distance from your body. Focus on left/right and up/down alignment."
+            elif depth_ratio < 2.0:
+                return "The object is slightly closer to your body than your hand. Pull your hand back a bit."
+            elif depth_ratio < 3.0:
+                return "The object is closer to your body than your hand. Move your hand back towards you."
+            else:
+                return "The object is much closer to your body. Pull your hand back towards yourself."
     
     def _generate_rule_based_guidance(self, hand_box: List[float], object_box: List[float], 
                                        target_name: str, distance: float, frame_shape: Tuple) -> str:
@@ -629,7 +669,6 @@ class ActivityGuideService:
         dy = object_center[1] - hand_center[1]  # positive = object is below
         
         # Calculate bounding box areas for depth estimation
-        # Larger box = closer to camera, smaller box = farther from camera
         hand_area = (hand_box[2] - hand_box[0]) * (hand_box[3] - hand_box[1])
         object_area = (object_box[2] - object_box[0]) * (object_box[3] - object_box[1])
         
@@ -639,34 +678,45 @@ class ActivityGuideService:
         object_relative_size = object_area / frame_area
         
         # Estimate depth difference based on relative sizes
-        # With a FRONT-FACING camera (webcam/selfie style):
-        # - Object appears smaller = farther from camera = CLOSER to user's body
-        # - Object appears larger = closer to camera = FARTHER from user's body
         depth_ratio = object_relative_size / hand_relative_size if hand_relative_size > 0 else 1.0
         
         # Determine primary direction(s)
         directions = []
         
-        # Depth direction (forward/back) - adjusted for front-facing camera
-        if depth_ratio < 0.4:
-            # Object is much smaller = farther from camera = closer to user's body
-            # User needs to pull hand BACK towards their body
-            directions.append("back towards you")
-        elif depth_ratio > 2.5:
-            # Object is much larger = closer to camera = farther from user's body
-            # User needs to reach OUT/FORWARD away from their body
-            directions.append("forward away from you")
+        # Depth direction (forward/back) - adjusted for camera orientation
+        if self.camera_facing_towards_user:
+            # Front-facing camera: smaller = closer to body, larger = farther from body
+            if depth_ratio < 0.4:
+                directions.append("back towards you")
+            elif depth_ratio > 2.5:
+                directions.append("forward away from you")
+        else:
+            # Chest-mounted camera: smaller = farther from body, larger = closer to body (INVERTED)
+            if depth_ratio < 0.4:
+                directions.append("forward away from you")
+            elif depth_ratio > 2.5:
+                directions.append("back towards you")
         
-        # Horizontal direction (INVERTED for front-facing camera mirror effect)
+        # Horizontal direction - INVERTED for front-facing camera, NORMAL for chest-mounted
         if abs(dx) > w * 0.05:  # More than 5% of frame width
-            if dx > 0:
-                # Object appears on right side of frame = actually on user's LEFT
-                directions.append("left")
+            if self.camera_facing_towards_user:
+                # Front-facing: mirror effect - invert left/right
+                if dx > 0:
+                    # Object appears on right side of frame = actually on user's LEFT
+                    directions.append("left")
+                else:
+                    # Object appears on left side of frame = actually on user's RIGHT
+                    directions.append("right")
             else:
-                # Object appears on left side of frame = actually on user's RIGHT
-                directions.append("right")
+                # Chest-mounted: no mirror - normal left/right
+                if dx > 0:
+                    # Object is on right side of frame = actually on user's RIGHT
+                    directions.append("right")
+                else:
+                    # Object is on left side of frame = actually on user's LEFT
+                    directions.append("left")
         
-        # Vertical direction
+        # Vertical direction (same for both camera types)
         if abs(dy) > h * 0.05:  # More than 5% of frame height
             if dy > 0:
                 directions.append("down")
@@ -676,14 +726,24 @@ class ActivityGuideService:
         # Get distance description
         distance_desc = self._get_distance_description(distance, w)
         
-        # Build instruction with depth context (for front-facing camera)
+        # Build instruction with depth context (adjusted for camera orientation)
         depth_context = ""
-        if depth_ratio < 0.4:
-            depth_context = f" The {target_name} is closer to your body than your hand."
-        elif depth_ratio > 2.5:
-            depth_context = f" The {target_name} is farther out, away from your body."
-        elif 0.7 < depth_ratio < 1.4:
-            depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
+        if self.camera_facing_towards_user:
+            # Front-facing camera logic
+            if depth_ratio < 0.4:
+                depth_context = f" The {target_name} is closer to your body than your hand."
+            elif depth_ratio > 2.5:
+                depth_context = f" The {target_name} is farther out, away from your body."
+            elif 0.7 < depth_ratio < 1.4:
+                depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
+        else:
+            # Chest-mounted camera logic (INVERTED)
+            if depth_ratio < 0.4:
+                depth_context = f" The {target_name} is farther from your body than your hand."
+            elif depth_ratio > 2.5:
+                depth_context = f" The {target_name} is closer to your body than your hand."
+            elif 0.7 < depth_ratio < 1.4:
+                depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
         
         # Build final instruction
         if not directions:
@@ -842,13 +902,19 @@ class ActivityGuideService:
                 "suspected_reason": self.last_failed_reason
             }
     
+    def set_camera_orientation(self, facing_towards_user: bool):
+        """Set camera orientation: True = facing towards user (webcam), False = facing away (ESP32 on chest)"""
+        self.camera_facing_towards_user = facing_towards_user
+        print(f"✓ Camera orientation set: {'facing towards user' if facing_towards_user else 'facing away from user'}")
+    
     def get_status(self) -> Dict[str, Any]:
         """Get current activity guide status"""
         return {
             "stage": self.guidance_stage,
             "current_instruction": self.current_instruction,
             "target_objects": self.target_objects,
-            "instruction_history": self.instruction_history[-10:]  # Last 10 instructions
+            "instruction_history": self.instruction_history[-10:],  # Last 10 instructions
+            "camera_facing_towards_user": self.camera_facing_towards_user
         }
     
     def reset(self):

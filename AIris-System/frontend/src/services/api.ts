@@ -143,6 +143,13 @@ export const apiClient = {
     await client.post('/api/v1/activity-guide/reset');
   },
 
+  async setCameraOrientation(facingTowardsUser: boolean): Promise<{ status: string; message: string; facing_towards_user: boolean }> {
+    const response = await client.post('/api/v1/activity-guide/set-camera-orientation', {
+      facing_towards_user: facingTowardsUser,
+    });
+    return response.data;
+  },
+
   // Scene Description endpoints
   async startRecording(): Promise<any> {
     const response = await client.post('/api/v1/scene-description/start-recording');

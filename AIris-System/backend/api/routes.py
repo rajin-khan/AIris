@@ -345,6 +345,20 @@ async def reset_activity_guide():
     activity_guide_service.reset()
     return {"status": "success", "message": "Activity guide reset"}
 
+class CameraOrientationRequest(BaseModel):
+    facing_towards_user: bool
+
+@router.post("/activity-guide/set-camera-orientation")
+async def set_camera_orientation(request: CameraOrientationRequest):
+    """Set camera orientation for activity guide"""
+    activity_guide_service = get_activity_guide_service()
+    activity_guide_service.set_camera_orientation(request.facing_towards_user)
+    return {
+        "status": "success",
+        "message": f"Camera orientation set to {'facing towards user' if request.facing_towards_user else 'facing away from user'}",
+        "facing_towards_user": request.facing_towards_user
+    }
+
 # ==================== Scene Description Endpoints ====================
 
 @router.post("/scene-description/start-recording")

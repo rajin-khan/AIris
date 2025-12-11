@@ -117,6 +117,7 @@ export default function ActivityGuide({
   >([]);
   const [handDetected, setHandDetected] = useState(false);
   const [currentTaskTarget, setCurrentTaskTarget] = useState<string>("");
+  const [cameraFacingTowardsUser, setCameraFacingTowardsUser] = useState<boolean>(true);
   const frameIntervalRef = useRef<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lastInstructionRef = useRef<string>("");
@@ -352,6 +353,15 @@ export default function ActivityGuide({
     return () => stopFrameProcessing();
   }, [cameraOn, stage]);
 
+  // Update camera orientation when toggle changes
+  useEffect(() => {
+    if (cameraOn) {
+      apiClient.setCameraOrientation(cameraFacingTowardsUser).catch((error) => {
+        console.error("Failed to set camera orientation:", error);
+      });
+    }
+  }, [cameraFacingTowardsUser, cameraOn]);
+
   const startFrameProcessing = () => {
     if (frameIntervalRef.current) return;
 
@@ -555,6 +565,20 @@ export default function ActivityGuide({
     <div className="flex-1 flex flex-col lg:flex-row p-6 md:p-10 gap-6 md:gap-10 overflow-hidden h-full">
       {/* Left Panel - Camera Feed */}
       <div className="flex-1 flex flex-col min-h-0 lg:min-h-0 lg:h-full">
+        {/* Camera Orientation Toggle */}
+        <div className="mb-3 flex items-center justify-end">
+          <label className="flex items-center gap-2 text-xs text-dark-text-secondary cursor-pointer hover:text-dark-text-primary transition-colors">
+            <input
+              type="checkbox"
+              checked={cameraFacingTowardsUser}
+              onChange={(e) => setCameraFacingTowardsUser(e.target.checked)}
+              className="w-4 h-4 rounded border-dark-border bg-dark-bg text-brand-gold focus:ring-brand-gold focus:ring-offset-0 cursor-pointer"
+            />
+            <span>
+              Camera is facing {cameraFacingTowardsUser ? "towards me" : "away from me"}
+            </span>
+          </label>
+        </div>
         <div className="flex-1 bg-black rounded-3xl overflow-hidden relative border-2 border-dark-border shadow-2xl shadow-black/50 min-h-0 h-full">
           {cameraOn && frameUrl ? (
             <img
