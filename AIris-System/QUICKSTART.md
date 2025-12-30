@@ -100,6 +100,9 @@ VITE ready in xxx ms
 
 ### Handsfree Mode (Voice-Only)
 - Click the **microphone icon** in the header to enable
+- **Live Transcription**: See real-time transcriptions of your speech and AIris responses in the header
+- **Time-Aware Greetings**: Receive contextual welcome messages based on time of day
+- **Audio Cues**: Hear audio feedback for all system actions (camera toggle, mode switching, recording, etc.)
 - All instructions are automatically spoken
 - Use voice commands:
   - "Switch to activity guide" / "Switch to scene description"
@@ -107,6 +110,7 @@ VITE ready in xxx ms
   - "Input task" (dictate task name)
   - "Start task" (begin the task)
   - "Yes" / "No" (for feedback)
+  - "Refresh" (restart voice recognition if needed)
 - Perfect for blind users — no screen needed!
 
 ---
@@ -157,6 +161,11 @@ VITE ready in xxx ms
 **Recommended Setup:** We've designed a **custom ESP32-CAM with protective casing** (see `Hardware/cam-casing/airis-case.stl`) for the best handsfree experience. This provides wireless camera positioning and professional appearance.
 
 **Default Setup:** The system works perfectly with your computer's built-in webcam and speakers/microphone. No external hardware is required — we've made this the default option for maximum accessibility and ease of use.
+
+**Camera Orientation Support:**
+- **Front-Facing (Webcam)**: Default mode when camera faces towards the user
+- **Away-Facing (ESP32 Chest-Mounted)**: System automatically handles reverse coordinate calculations for proper guidance when camera faces away from user
+- Toggle camera orientation in Activity Guide settings
 
 **Optional Accessories:**
 - **Custom ESP32-CAM with casing** ⭐ — Recommended for handsfree camera positioning

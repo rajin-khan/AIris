@@ -198,6 +198,8 @@ Hardware Firmware:
 - Voice commands via Handsfree Mode for all controls
 - Clear, concise audio feedback
 - Consistent audio cues for system states
+- Live transcription display for voice-only mode
+- Time-aware contextual greetings
 
 ### UX-2: Hands-Free Design
 - Custom ESP32-CAM with casing (recommended) or built-in webcam (default)
@@ -218,21 +220,26 @@ Hardware Firmware:
 - Active Guidance mode implementation
 - Backend API and services
 - Frontend development interface
-- YOLO object detection integration
+- YOLO26s object detection integration
 - MediaPipe hand tracking
-- Groq LLM integration
-- Whisper speech-to-text
-- pyttsx3 text-to-speech
+- Groq LLM integration (GPT OSS120B)
+- Web Speech API for STT/TTS (native browser)
+- Scene Description mode with fall detection
+- Guardian email alert system with templates
+- Handsfree/voice-only mode
+- Live transcription island display
+- Audio cues system for all system states
+- Time-aware welcome messages
+- ESP32 camera orientation support (front/away-facing)
+- Reverse coordinate calculations for away-facing cameras
+- Enhanced voice command recognition with fuzzy matching
+- Custom ESP32-CAM casing design (3D printable)
 
 ### In Progress 🔄
-- Scene Description mode refinement
 - Custom ESP32-CAM WiFi integration (optional)
 - Bluetooth mic/headphone integration (optional)
-- ✅ Guardian alert system (complete)
 
 ### Pending ⏳
-- ✅ Voice control complete (no physical buttons needed)
-- ✅ Custom camera casing designed (3D printable)
 - User field testing
 - Final documentation
 

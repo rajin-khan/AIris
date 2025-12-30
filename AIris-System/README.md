@@ -183,6 +183,7 @@ VITE_API_BASE_URL=http://localhost:8000  # Optional, default shown
 - **Hand Tracking**: MediaPipe for precise hand position tracking
 - **Audio Guidance**: Step-by-step instructions to reach objects
 - **Voice Control**: Full handsfree operation with voice commands
+- **Camera Orientation**: Support for both front-facing (webcam) and away-facing (ESP32 chest-mounted) cameras with reverse coordinate calculations
 
 ### 🔍 Scene Description Mode
 - **Continuous Analysis**: Real-time environment understanding
@@ -190,12 +191,19 @@ VITE_API_BASE_URL=http://localhost:8000  # Optional, default shown
 - **Safety Alerts**: Automatic guardian email notifications
 - **Risk Scoring**: Configurable sensitivity for alert thresholds
 
+### 🎤 Handsfree Voice Mode
+- **Live Transcription**: Real-time display of user and system speech in voice-only mode
+- **Audio Cues**: Comprehensive audio feedback for camera toggle, mode switching, recording start/stop, voice input refresh, and task input
+- **Time-Aware Welcome Messages**: Contextual greetings that adapt to time of day (morning, afternoon, evening, night)
+- **Enhanced Voice Recognition**: Fuzzy matching for robust command recognition with refresh capability
+
 ### 📧 Guardian Features
 - **Email Alerts**: Immediate notifications for safety events
 - **Daily Summaries**: Scheduled activity summaries
 - **Weekly Reports**: Comprehensive weekly activity reports
 - **Risk Threshold**: Adjustable sensitivity (0.1 - 0.5)
 - **Cooldown Protection**: Prevents email spam with smart cooldowns
+- **Email Templates**: Professional HTML email templates with AIris branding
 
 ## License
 

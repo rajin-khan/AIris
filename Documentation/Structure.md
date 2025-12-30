@@ -41,12 +41,13 @@ AIris-System/
 │   │
 │   ├── 📁 services/
 │   │   ├── __init__.py
-│   │   ├── activity_guide_service.py   # Object guidance logic
-│   │   ├── scene_description_service.py # Environment analysis
-│   │   ├── camera_service.py           # Video feed handling
-│   │   ├── model_service.py            # YOLO, MediaPipe, BLIP
+│   │   ├── activity_guide_service.py   # Object guidance logic (with camera orientation support)
+│   │   ├── scene_description_service.py # Environment analysis with fall detection
+│   │   ├── camera_service.py           # Video feed handling (webcam/ESP32)
+│   │   ├── model_service.py            # YOLO26s, MediaPipe, BLIP
 │   │   ├── tts_service.py              # Text-to-speech
-│   │   └── stt_service.py              # Speech-to-text
+│   │   ├── stt_service.py              # Speech-to-text
+│   │   └── email_service.py            # Guardian alerts and email templates
 │   │
 │   ├── 📁 models/
 │   │   ├── __init__.py
@@ -58,12 +59,20 @@ AIris-System/
 │   │
 │   ├── 📄 main.py                 # FastAPI entry point
 │   ├── 📄 requirements.txt        # Python dependencies
-│   └── 📄 yolov8s.pt              # YOLO model weights
+│   └── 📄 yolov8s.pt              # YOLO26s model weights (auto-downloads)
 │
 ├── 📁 frontend/
 │   ├── 📁 src/
 │   │   ├── 📁 components/         # React components
-│   │   ├── 📁 services/           # API client
+│   │   │   ├── ActivityGuide.tsx
+│   │   │   ├── SceneDescription.tsx
+│   │   │   ├── TranscriptionBubble.tsx  # Live transcription island
+│   │   │   └── HardwareSettings.tsx
+│   │   ├── 📁 services/           # API client & voice control
+│   │   │   ├── api.ts
+│   │   │   └── voiceControl.ts    # Voice command handling
+│   │   ├── 📁 utils/              # Utilities
+│   │   │   └── welcomeMessages.ts  # Time-aware messages
 │   │   ├── App.tsx
 │   │   ├── App.css
 │   │   ├── main.tsx
@@ -174,23 +183,28 @@ Archive/
 
 ### Completed ✅
 - [x] Backend architecture (FastAPI)
-- [x] Object detection (YOLOv8)
+- [x] Object detection (YOLO26s)
 - [x] Hand tracking (MediaPipe)
-- [x] LLM integration (Groq)
-- [x] Speech I/O (Whisper, pyttsx3)
-- [x] Frontend GUI (React)
+- [x] LLM integration (Groq GPT OSS120B)
+- [x] Speech I/O (Web Speech API - native browser)
+- [x] Frontend GUI (React + TypeScript)
 - [x] Active Guidance mode
-- [x] Scene Description mode (core)
+- [x] Scene Description mode with fall detection
+- [x] Guardian email alert system with templates
+- [x] Handsfree/voice-only mode
+- [x] Live transcription island
+- [x] Audio cues system
+- [x] Time-aware welcome messages
+- [x] ESP32 camera orientation support (front/away-facing)
+- [x] Custom ESP32-CAM casing design
 
 ### In Progress 🔄
-- [ ] ESP32-CAM WiFi streaming
-- [ ] Arduino Bluetooth audio
-- [ ] Guardian alert system
+- [ ] ESP32-CAM WiFi streaming (optional)
+- [ ] Bluetooth audio integration (optional)
 
 ### Pending ⏳
-- [ ] Physical button controls
-- [ ] Wearable enclosure
 - [ ] User field testing
+- [ ] Final documentation polish
 
 ---
 

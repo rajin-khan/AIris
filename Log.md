@@ -24,6 +24,28 @@
   </tr>
   <tr>
     <td align="center">
+      <strong>Dec 10</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Live Transcription Island & Audio Cues</strong><br/>
+      Added live transcription display island showing real-time user and system transcriptions in voice-only mode. Implemented comprehensive audio cues for camera toggle, mode switching, recording start/stop, voice input refresh, and task input. Enhanced user feedback with visual and audio indicators for all system states.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Dec 10</strong><br/>
+      <em>2025</em>
+    </td>
+    <td>
+      <strong>Time-Aware Welcome Messages & ESP32 Reverse Calculations</strong><br/>
+      Implemented contextual time-aware welcome messages that adapt to time of day (morning, afternoon, evening, night). Added support for away-facing camera orientation (ESP32 chest-mounted) with reverse coordinate calculations for proper guidance when camera faces away from user. Enhanced camera orientation detection and spatial vector calculations.<br/>
+      <em>- Rajin</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
       <strong>Dec 9</strong><br/>
       <em>2025</em>
     </td>
@@ -546,6 +568,10 @@
 | YOLO26s upgrade | Dec 8, 2025 | ✅ |
 | Guardian email system | Dec 7, 2025 | ✅ |
 | Handsfree mode complete | Dec 9, 2025 | ✅ |
+| Live transcription island | Dec 10, 2025 | ✅ |
+| Audio cues system | Dec 10, 2025 | ✅ |
+| Time-aware welcome messages | Dec 10, 2025 | ✅ |
+| ESP32 reverse calculations | Dec 10, 2025 | ✅ |
 | Core software complete | Dec 9, 2025 | ✅ |
 | Optional hardware accessories | Dec 2025 | 🔄 |
 | Final submission | Dec 2025 | ⏳ |
@@ -603,6 +629,11 @@
 - ✅ Custom ESP32-CAM casing design (3D printable)
 - ✅ Repository reorganization
 - ✅ Architecture shift to computer-based system
+- ✅ Live transcription island for voice-only mode
+- ✅ Comprehensive audio cues system
+- ✅ Time-aware welcome messages
+- ✅ ESP32 reverse calculations for away-facing camera
+- ✅ Enhanced voice command recognition with fuzzy matching
 - 🔄 Optional hardware accessories (ESP32-CAM, Bluetooth audio)
 - ✅ Complete documentation update
 

@@ -146,9 +146,12 @@ graph LR
 | 🔍 **Scene Description Mode** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
 | 🎤 **Handsfree Voice Mode** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
 | 📧 **Guardian Email Alerts** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
+| 💬 **Live Transcription** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
+| 🔊 **Audio Cues System** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
+| ⏰ **Time-Aware Messages** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
+| 📷 **ESP32 Camera Support** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
 | ⚡ **Backend API** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
 | 🌐 **Frontend GUI** | ✅ Complete | ![100%](https://img.shields.io/badge/100%25-success?style=flat-square) |
-| 📷 **ESP32-CAM (Optional)** | 🔄 Optional | ![40%](https://img.shields.io/badge/40%25-orange?style=flat-square) |
 | 🎧 **Bluetooth Audio (Optional)** | 🔄 Optional | ![30%](https://img.shields.io/badge/30%25-orange?style=flat-square) |
 
 <div align="center">
@@ -329,8 +332,11 @@ cat QUICKSTART.md
 | 🔍 **Scene Understanding** | Continuous environment awareness with fall detection |
 | ⚠️ **Safety Alerts** | Automatic fall detection with guardian email notifications |
 | 🎤 **Handsfree Mode** | Full voice control — no screen interaction required |
+| 💬 **Live Transcription** | Real-time display of user and system speech in voice-only mode |
+| 🔊 **Audio Cues** | Comprehensive audio feedback for all system states and actions |
+| ⏰ **Time-Aware Messages** | Contextual greetings that adapt to time of day |
 | 📧 **Guardian Features** | Daily/weekly summaries and configurable risk thresholds |
-| 📡 **Custom Hardware** | Custom ESP32-CAM with casing (recommended) + Bluetooth mic/headphone (optional) |
+| 📡 **ESP32 Camera Support** | Support for both front-facing (webcam) and away-facing (chest-mounted ESP32) cameras |
 | 🔒 **Privacy First** | All AI processing happens on your local server |
 
 ---
