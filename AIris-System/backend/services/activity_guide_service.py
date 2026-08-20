@@ -15,6 +15,7 @@ from PIL import ImageFont
 
 from services.model_service import ModelService
 from utils.frame_utils import draw_guidance_on_frame, load_font
+from utils.ablation import get_ablation_flags
 
 class ActivityGuideService:
     def __init__(self, model_service: ModelService):
@@ -41,6 +42,10 @@ class ActivityGuideService:
         # Feedback tracking - to adjust behavior after failed attempts
         self.failed_attempts = 0
         self.last_failed_reason = None  # "depth", "misclassification", or "unknown"
+
+        self.ablation = get_ablation_flags()
+        if self.ablation.any_active():
+            print(f"⚠️  Activity Guide ablation: {self.ablation.describe()}")
         
         # Constants
         self.CONFIDENCE_THRESHOLD = 0.5
@@ -295,7 +300,7 @@ class ActivityGuideService:
             # Even without YOLO, try to show hand tracking if available
             annotated_frame = frame.copy()
             detected_hands = []
-            if hand_model is not None:
+            if hand_model is not None and not self.ablation.no_hand_tracking:
                 try:
                     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     mp_results = hand_model.process(rgb_frame)
@@ -358,7 +363,7 @@ class ActivityGuideService:
         
         # Detect hands (if hand model is available)
         detected_hands = []
-        if hand_model is not None:
+        if hand_model is not None and not self.ablation.no_hand_tracking:
             try:
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mp_results = hand_model.process(rgb_frame)
@@ -451,6 +456,18 @@ class ActivityGuideService:
             )
             if found_target_name:
                 self.found_object_location = detected_objects[found_target_name]
+                location_desc = self._describe_location_detailed(self.found_object_location, frame.shape)
+
+                # Ablation: announce location once, skip the closed-loop directional guide
+                if self.ablation.no_active_guidance:
+                    instruction = (
+                        f"I see the {primary_target} {location_desc}. "
+                        "Directional guidance is disabled. Confirm when you have the object."
+                    )
+                    self._update_instruction(instruction)
+                    self.guidance_stage = 'AWAITING_FEEDBACK'
+                    return
+
                 verification_needed = (primary_target, found_target_name) in self.verification_pairs
                 if verification_needed:
                     instruction = f"I see something that could be the {primary_target}, but it looks like a {found_target_name}. I will guide you to it for verification."
@@ -458,7 +475,6 @@ class ActivityGuideService:
                     self.next_stage_after_guiding = 'VERIFYING_OBJECT'
                     self.guidance_stage = 'GUIDING_TO_PICKUP'
                 else:
-                    location_desc = self._describe_location_detailed(self.found_object_location, frame.shape)
                     instruction = f"Great, I see the {primary_target} {location_desc}. I will now guide your hand to it."
                     self._update_instruction(instruction)
                     self.next_stage_after_guiding = 'CONFIRMING_PICKUP'
@@ -471,6 +487,46 @@ class ActivityGuideService:
         
         elif self.guidance_stage == 'GUIDING_TO_PICKUP':
             target_box = self.found_object_location
+
+            # Keep the latest box if the object is still visible
+            object_still_visible = any(
+                target in detected_objects for target in self.target_objects
+            )
+            if object_still_visible:
+                for target in self.target_objects:
+                    if target in detected_objects:
+                        self.found_object_location = detected_objects[target]
+                        target_box = detected_objects[target]
+                        break
+                self.object_last_seen_time = time.time()
+                self.object_disappeared_notified = False
+
+            # Ablation: MediaPipe off — direct relative to frame center, not the hand
+            if self.ablation.no_hand_tracking:
+                if not target_box:
+                    self._update_instruction(
+                        f"I am looking for the {primary_target}. Please scan the area."
+                    )
+                    return
+                h, w = frame.shape[:2]
+                cx, cy = w / 2.0, h / 2.0
+                gaze_box = [cx - 20, cy - 20, cx + 20, cy + 20]
+                distance = self._calculate_distance(
+                    self._get_box_center(gaze_box), self._get_box_center(target_box)
+                )
+                guidance = self._generate_rule_based_guidance(
+                    gaze_box, target_box, primary_target, distance, frame.shape
+                )
+                reached, *_ = self._is_hand_at_object(gaze_box, target_box, frame.shape)
+                if reached:
+                    self._update_instruction(
+                        f"The {primary_target} is centered in view. Confirm if you have the object."
+                    )
+                    self.guidance_stage = 'AWAITING_FEEDBACK'
+                else:
+                    self._update_instruction(guidance)
+                return
+
             if not detected_hands:
                 self._update_instruction("I can't see your hand. Please bring it into view.")
             else:
@@ -567,6 +623,9 @@ class ActivityGuideService:
         
         v_pos = "in the upper part" if center_y < h / 3 else "in the lower part" if center_y > 2 * h / 3 else "at chest level"
         
+        if self.ablation.no_depth_heuristic:
+            return f"{v_pos} and {h_pos}" if h_pos != "in front of you" else f"{h_pos}, {v_pos}"
+
         # Depth estimation from box size
         relative_area = ((box[2] - box[0]) * (box[3] - box[1])) / (w * h)
         if self.camera_facing_towards_user:
@@ -683,19 +742,20 @@ class ActivityGuideService:
         # Determine primary direction(s)
         directions = []
         
-        # Depth direction (forward/back) - adjusted for camera orientation
-        if self.camera_facing_towards_user:
-            # Front-facing camera: smaller = closer to body, larger = farther from body
-            if depth_ratio < 0.4:
-                directions.append("back towards you")
-            elif depth_ratio > 2.5:
-                directions.append("forward away from you")
-        else:
-            # Chest-mounted camera: smaller = farther from body, larger = closer to body (INVERTED)
-            if depth_ratio < 0.4:
-                directions.append("forward away from you")
-            elif depth_ratio > 2.5:
-                directions.append("back towards you")
+        # Depth direction (forward/back) - skipped when depth heuristic is ablated
+        if not self.ablation.no_depth_heuristic:
+            if self.camera_facing_towards_user:
+                # Front-facing camera: smaller = closer to body, larger = farther from body
+                if depth_ratio < 0.4:
+                    directions.append("back towards you")
+                elif depth_ratio > 2.5:
+                    directions.append("forward away from you")
+            else:
+                # Chest-mounted camera: smaller = farther from body, larger = closer to body (INVERTED)
+                if depth_ratio < 0.4:
+                    directions.append("forward away from you")
+                elif depth_ratio > 2.5:
+                    directions.append("back towards you")
         
         # Horizontal direction - INVERTED for front-facing camera, NORMAL for chest-mounted
         if abs(dx) > w * 0.05:  # More than 5% of frame width
@@ -728,22 +788,23 @@ class ActivityGuideService:
         
         # Build instruction with depth context (adjusted for camera orientation)
         depth_context = ""
-        if self.camera_facing_towards_user:
-            # Front-facing camera logic
-            if depth_ratio < 0.4:
-                depth_context = f" The {target_name} is closer to your body than your hand."
-            elif depth_ratio > 2.5:
-                depth_context = f" The {target_name} is farther out, away from your body."
-            elif 0.7 < depth_ratio < 1.4:
-                depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
-        else:
-            # Chest-mounted camera logic (INVERTED)
-            if depth_ratio < 0.4:
-                depth_context = f" The {target_name} is farther from your body than your hand."
-            elif depth_ratio > 2.5:
-                depth_context = f" The {target_name} is closer to your body than your hand."
-            elif 0.7 < depth_ratio < 1.4:
-                depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
+        if not self.ablation.no_depth_heuristic:
+            if self.camera_facing_towards_user:
+                # Front-facing camera logic
+                if depth_ratio < 0.4:
+                    depth_context = f" The {target_name} is closer to your body than your hand."
+                elif depth_ratio > 2.5:
+                    depth_context = f" The {target_name} is farther out, away from your body."
+                elif 0.7 < depth_ratio < 1.4:
+                    depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
+            else:
+                # Chest-mounted camera logic (INVERTED)
+                if depth_ratio < 0.4:
+                    depth_context = f" The {target_name} is farther from your body than your hand."
+                elif depth_ratio > 2.5:
+                    depth_context = f" The {target_name} is closer to your body than your hand."
+                elif 0.7 < depth_ratio < 1.4:
+                    depth_context = f" Your hand and the {target_name} are at a similar distance from your body."
         
         # Build final instruction
         if not directions:
@@ -824,6 +885,10 @@ class ActivityGuideService:
             overlap_ratio > 0.4
         )
         
+        # Ablation: skip area-ratio depth gate; 2D overlap is enough
+        if self.ablation.no_depth_heuristic:
+            return proximity_2d, distance, iou, overlap_ratio
+
         # Object is truly "reached" only if both 2D proximity AND depth are satisfied
         reached = proximity_2d and depth_similar
         

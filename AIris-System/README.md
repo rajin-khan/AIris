@@ -36,6 +36,7 @@ AIris-System/
 │   ├── models/               # Pydantic schemas
 │   ├── utils/                # Helper utilities
 │   ├── main.py               # FastAPI entry point
+│   ├── ablate.py             # Ablation-study runner
 │   └── requirements.txt      # Python dependencies
 │
 └── frontend/
@@ -116,6 +117,35 @@ Enable **Voice-Only Mode** for hands-free operation:
   - "Yes" / "No" (for feedback prompts)
 - All instructions and descriptions are automatically spoken
 - Perfect for blind users — no screen interaction needed
+
+## Ablation Study
+
+Stop any existing `python main.py` first (it uses port 8000). Keep the frontend running at `http://localhost:5173`, then start **one** condition at a time:
+
+```bash
+cd backend
+
+python ablate.py --noActiveGuidance   # no directional loop
+python ablate.py --noHandTracking     # MediaPipe off
+python ablate.py --noDepthHeuristic   # no area-ratio forward/back
+python ablate.py --noBLIP             # captioning off
+python ablate.py --noLLM              # Groq/GPT-OSS off
+python ablate.py --baseline           # full system
+python ablate.py --list               # print conditions
+```
+
+Use the matching tab in the UI, record the trial, then Ctrl+C and start the next flag.
+
+| Flag | Mode | Effect |
+|:-----|:-----|:-------|
+| `--noActiveGuidance` | Activity Guide | Detects the object and announces its location once. No closed-loop left/right/up/down/forward instructions. Confirm with Yes/No. |
+| `--noHandTracking` | Activity Guide | MediaPipe is off. Directions are object vs frame center, not hand vs object. |
+| `--noDepthHeuristic` | Activity Guide | 2D guidance only. No forward/back from bounding-box area ratio; contact does not require a depth match. |
+| `--noBLIP` | Scene Description | No captions, so no BLIP-based summaries or caption fall detection. |
+| `--noLLM` | Scene Description | BLIP still captions; summaries and risk scores use keywords only, not Groq. |
+| `--baseline` | Both | Full system with every component enabled. |
+
+Optional: `python ablate.py --noBLIP --port 8000` to change the bind port.
 
 ## API Documentation
 

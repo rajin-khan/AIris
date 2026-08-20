@@ -19,6 +19,7 @@ from groq import Groq
 from services.model_service import ModelService
 from services.email_service import get_email_service
 from utils.frame_utils import draw_guidance_on_frame, load_font
+from utils.ablation import get_ablation_flags
 
 
 # Risk factor keywords for quick frame-level assessment
@@ -148,6 +149,10 @@ class SceneDescriptionService:
             self.FONT_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'Merged_System', 'RobotoCondensed-Regular.ttf')
         
         os.makedirs(self.RECORDINGS_DIR, exist_ok=True)
+
+        self.ablation = get_ablation_flags()
+        if self.ablation.any_active():
+            print(f"⚠️  Scene Description ablation: {self.ablation.describe()}")
     
     def _init_groq(self):
         """Initialize Groq client"""
@@ -440,6 +445,24 @@ Respond with JSON only."""
         if self.is_recording and (current_time - self.last_frame_analysis_time) >= self.FRAME_ANALYSIS_INTERVAL_SEC:
             self.last_frame_analysis_time = current_time
             frame_offset = elapsed_seconds  # Time since recording started
+
+            # Ablation: skip BLIP captioning entirely
+            if self.ablation.no_blip:
+                status_text = f"🔴 REC {int(elapsed_seconds)}s | Captioning off (ablation)"
+                annotated_frame = self._draw_text_on_frame(annotated_frame, status_text)
+                return {
+                    "annotated_frame": annotated_frame,
+                    "description": None,
+                    "summary": None,
+                    "safety_alert": False,
+                    "risk_score": 0.0,
+                    "is_recording": True,
+                    "stats": self._get_session_stats(elapsed_seconds),
+                    "recent_observations": [],
+                    "fall_alert_sent": False,
+                    "alert_sent": False,
+                    "message": "BLIP captioning disabled for ablation"
+                }
             
             # Get vision model
             vision_processor, vision_model, device = await self.model_service.load_vision_model()
@@ -585,20 +608,74 @@ Respond with JSON only."""
         """Process the full buffer with LLM for summary and risk assessment"""
         buffer_copy = list(self.frame_description_buffer)
         self.frame_description_buffer = []  # Clear buffer
-        
-        if not self.groq_client:
-            print("⚠️ LLM not available for summarization!")
+
+        # Ablation / fallback: keyword-only summary when Groq is off or unavailable
+        if self.ablation.no_llm or not self.groq_client:
+            if self.ablation.no_llm:
+                print("⚠️ LLM ablated — using keyword risk assessment only")
+            else:
+                print("⚠️ LLM not available for summarization!")
+
+            descriptions = [e["description"] for e in buffer_copy]
+            summary = "; ".join(descriptions) if descriptions else "No captions"
+            risk_score = max((e.get("frame_risk", 0.0) for e in buffer_copy), default=0.0)
+            risk_factors = list(set(
+                indicator
+                for e in buffer_copy
+                for indicator in e.get("risk_indicators", [])
+            ))
+            reasoning = "Keyword-only analysis (LLM disabled)"
+
+            self.summaries_count += 1
+            self.current_risk_score = risk_score
+            self.last_risk_factors = risk_factors
+
+            email_service = get_email_service()
+            risk_threshold = getattr(email_service, 'risk_threshold', 0.5)
+            should_alert = risk_score >= risk_threshold
+            alert_actually_sent = False
+            if should_alert:
+                print(f"🚨 Risk score {risk_score:.2f} >= threshold {risk_threshold:.2f} - Sending alert!")
+                alert_actually_sent = await self._send_safety_alert_email(
+                    summary=summary,
+                    descriptions=descriptions,
+                    risk_score=risk_score,
+                    risk_factors=risk_factors
+                )
+                if alert_actually_sent:
+                    self.alerts_count += 1
+            else:
+                self._track_observation(summary, descriptions, risk_score)
+
+            self.current_session_log["events"].append({
+                "timestamp": datetime.now().isoformat(),
+                "type": "SUMMARY",
+                "summary": summary,
+                "risk_score": risk_score,
+                "risk_factors": risk_factors,
+                "reasoning": reasoning,
+                "alert_sent": alert_actually_sent,
+                "frame_count": len(buffer_copy),
+                "ablation": "no_llm"
+            })
+
+            status_text = f"🔴 REC {int(elapsed_seconds)}s | Risk: {risk_score:.2f} | LLM off"
+            if alert_actually_sent:
+                status_text += " | ⚠️ ALERT"
+            annotated_frame = self._draw_text_on_frame(annotated_frame, status_text)
+
             return {
                 "annotated_frame": annotated_frame,
                 "description": latest_description,
-                "summary": None,
-                "safety_alert": False,
-                "risk_score": 0.0,
+                "summary": summary,
+                "safety_alert": alert_actually_sent,
+                "risk_score": risk_score,
+                "risk_factors": risk_factors,
                 "is_recording": True,
                 "stats": self._get_session_stats(elapsed_seconds),
-                "error": "LLM not configured",
+                "recent_observations": descriptions[-5:],
                 "fall_alert_sent": False,
-                "alert_sent": False
+                "alert_sent": alert_actually_sent
             }
         
         # Build and send analysis prompt

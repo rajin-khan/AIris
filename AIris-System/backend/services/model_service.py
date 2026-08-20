@@ -74,12 +74,21 @@ class ModelService:
     async def _load_yolo_model(self):
         """Load YOLO object detection model - optimized for macOS ARM (M1/M2)"""
         try:
-            model_path = os.path.join(os.path.dirname(__file__), '..', self.YOLO_MODEL_PATH)
-            if os.path.exists(model_path):
-                self.yolo_model = YOLO(model_path)
-            else:
-                # Try to download or use default
-                self.yolo_model = YOLO('yolo26s.pt')
+            model_name = os.path.basename(self.YOLO_MODEL_PATH)
+            model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', model_name))
+            if not os.path.exists(model_path):
+                # Official Ultralytics weights auto-download by filename (YOLO26 requires ultralytics>=8.4.0)
+                print(f"YOLO model not found at {model_path}. Downloading {model_name}...")
+                from ultralytics.utils.downloads import attempt_download_asset
+                downloaded = attempt_download_asset(model_path)
+                if not os.path.isfile(downloaded):
+                    raise FileNotFoundError(
+                        f"Failed to download '{model_name}'. "
+                        "YOLO26 auto-download requires ultralytics>=8.4.0 (pip install -U ultralytics)."
+                    )
+                print(f"✓ Downloaded YOLO model to {downloaded}")
+                model_path = downloaded
+            self.yolo_model = YOLO(model_path)
             
             # Verify model is actually loaded by doing a test inference
             import numpy as np
